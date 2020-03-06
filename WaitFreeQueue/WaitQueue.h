@@ -23,7 +23,6 @@ typedef struct {
     volatile DequeueRequest *dequeueRequest;
 } Cell;
 
-
 typedef struct _WaitFreeQueueNode {
 
     volatile long identifier;
@@ -44,6 +43,16 @@ typedef struct _ThreadLocalState {
 
     volatile WaitFreeQueueNode *tailNode, *headNode;
     volatile struct _ThreadLocalState *next;
+
+    struct {
+        EnqueueRequest enqueueRequest;
+        struct _ThreadLocalState* peer;
+    } Enqueue;
+
+    struct {
+        DequeueRequest dequeueRequest;
+        struct _ThreadLocalState* peer;
+    } Dequeue;
 
 
 } ThreadLocalState;
