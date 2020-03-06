@@ -6,8 +6,9 @@
 #include <stddef.h>
 #include <sys/user.h>
 #include <malloc.h>
-#include "WaitQueue.h"
-#include "../SynchronizationPrimitives/SynchronizationPrimitives.h"
+#include "WaitFreeQueue.h"
+#include "../Hardware/SynchronizationPrimitives.h"
+
 
 #define FAST_PATH_MAX_STEPS 10
 #define N WAIT_FREE_QUEUE_NODE_SIZE
@@ -37,7 +38,7 @@ WaitFreeQueueNode* allocateWaitFreeQueueNode(unsigned long identifier) {
 
 
 
-static Cell* findTargetCell(WaitFreeQueueNode* node, unsigned long targetCellIdentifier) {
+static DataCell* findTargetCell(WaitFreeQueueNode* node, unsigned long targetCellIdentifier) {
 
     unsigned long currentIdentifier;
 

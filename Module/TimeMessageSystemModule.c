@@ -9,6 +9,7 @@
 #include <linux/fs.h>
 #include <stddef.h>
 
+/*
 static struct file_operations fops = {
         .write = NULL,
         .read = NULL,
@@ -37,3 +38,5 @@ int init_module(void)
 
     return SUCCESS;
 }
+
+ */

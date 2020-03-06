@@ -1,33 +1,24 @@
 #pragma once
 
+#include "../Hardware/MemoryAlignment.h"
+#include "DataCell.h"
+
 #define WAIT_FREE_QUEUE_NODE_SIZE 4
 
-typedef struct {
-    volatile bool pending;
-    volatile unsigned long targetCellIndex;
-} RequestState;
 
-typedef struct {
-    volatile void *data;
-    volatile RequestState state;
-} EnqueueRequest;
 
-typedef struct {
-    volatile unsigned long identifier;
-    volatile RequestState state;
-} DequeueRequest;
+typedef ALIGNED_MEMORY volatile struct {
+    void *data;
+    EnqueueRequest *enqueueRequest;
+    DequeueRequest *dequeueRequest;
+} DataCell ;
 
-typedef struct {
-    volatile void *data;
-    volatile EnqueueRequest *enqueueRequest;
-    volatile DequeueRequest *dequeueRequest;
-} Cell;
 
 typedef struct _WaitFreeQueueNode {
 
     volatile long identifier;
     volatile struct _WaitFreeQueueNode *next;
-    volatile Cell cells[];
+    volatile DataCell cells[];
 
 } WaitFreeQueueNode;
 
