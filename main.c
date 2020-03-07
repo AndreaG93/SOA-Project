@@ -40,7 +40,7 @@ int main() {
     unsigned long dd = 4;
 
     setBit(&dd, 0);
-    setBits(&dd, 7, 2);
+
 
     fprintf(stderr, "%lu\n", getBit(dd, 0));
     fprintf(stderr, "%lu\n", getBit(dd, 1));
