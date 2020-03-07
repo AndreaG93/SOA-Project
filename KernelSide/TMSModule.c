@@ -1,7 +1,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
-
-#define MODULE_NAME "Timed-Messaging-System"
+#include "./Common.h"
+#include "./TMSDeviceDriver.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Andrea Graziani <andrea.graziani93@outlook.it>");
@@ -10,11 +10,13 @@ MODULE_DESCRIPTION("A simple system service that allows exchanging messages acro
 
 int init_module() {
 
-    printk(KERN_NOTICE "'%s' module successfully installed!\n", MODULE_NAME);
+    registerTMSDeviceDriver();
+    printk(KERN_NOTICE "'%s' module successfully installed!\n", TMS_MODULE_NAME);
     return 0;
 }
 
 
 void cleanup_module() {
-    printk(KERN_NOTICE "'%s' module successfully removed!\n", MODULE_NAME);
+    unregisterTMSDeviceDriver();
+    printk(KERN_NOTICE "'%s' module successfully removed!\n", TMS_MODULE_NAME);
 }

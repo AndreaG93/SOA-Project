@@ -1,2 +1,2 @@
 make clean
-sudo rmmod Module
+sudo rmmod TMSModule

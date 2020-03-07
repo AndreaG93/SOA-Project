@@ -1,4 +1,4 @@
 make clean
 make
-sudo insmod ./Module.ko
-modinfo Module.ko
+sudo insmod ./TMSModule.ko
+modinfo TMSModule.ko
