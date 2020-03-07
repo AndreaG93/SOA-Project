@@ -3,22 +3,14 @@
 #include "../Hardware/MemoryAlignment.h"
 #include "DataCell.h"
 
+
 #define WAIT_FREE_QUEUE_NODE_SIZE 4
-
-
-
-typedef ALIGNED_MEMORY volatile struct {
-    void *data;
-    EnqueueRequest *enqueueRequest;
-    DequeueRequest *dequeueRequest;
-} DataCell ;
-
 
 typedef struct _WaitFreeQueueNode {
 
-    volatile long identifier;
+    volatile unsigned long identifier;
     volatile struct _WaitFreeQueueNode *next;
-    volatile DataCell cells[];
+    DataCell cells[];
 
 } WaitFreeQueueNode;
 
@@ -37,13 +29,19 @@ typedef struct _ThreadLocalState {
 
     struct {
         EnqueueRequest enqueueRequest;
-        struct _ThreadLocalState* peer;
+        struct _ThreadLocalState *peer;
     } Enqueue;
 
     struct {
         DequeueRequest dequeueRequest;
-        struct _ThreadLocalState* peer;
+        struct _ThreadLocalState *peer;
     } Dequeue;
 
 
 } ThreadLocalState;
+
+ThreadLocalState *allocateAndInitializeThreadLocalState(WaitFreeQueue *waitFreeQueue);
+
+WaitFreeQueue *allocateAndInitializeWaitFreeQueue();
+
+void enqueue(WaitFreeQueue *waitFreeQueue, ThreadLocalState *threadLocalState, void *data);

@@ -8,65 +8,137 @@
 #include <malloc.h>
 #include "WaitFreeQueue.h"
 #include "../Hardware/SynchronizationPrimitives.h"
+#include "../Hardware/MemoryAlignment.h"
 
 
 #define FAST_PATH_MAX_STEPS 10
 #define N WAIT_FREE_QUEUE_NODE_SIZE
 #define SUCCESS 0
 
-WaitFreeQueue* allocateWaitFreeQueue() {
+WaitFreeQueueNode *_allocateAndInitializeWaitFreeQueueNode(unsigned long identifier) {
 
-
-
-
-    return NULL;
-}
-
-WaitFreeQueueNode* allocateWaitFreeQueueNode(unsigned long identifier) {
-
-    WaitFreeQueueNode* output = NULL; //align_malloc(PAGE_SIZE, sizeof(WaitFreeQueueNode));
+    WaitFreeQueueNode *output = NULL;//allocateAlignedMemoryArea(PAGE_SIZE, sizeof(WaitFreeQueueNode));
 
     output->identifier = identifier;
     output->next = NULL;
 
     for (int index = 0; index < WAIT_FREE_QUEUE_NODE_SIZE; index++) {
-        output->cells[index];
+
+        DataCell currentDatCell = output->cells[index];
+
+        currentDatCell.enqueueRequest = NULL;
+        currentDatCell.dequeueRequest = NULL;
+        currentDatCell.data = NULL;
     }
 
     return output;
 }
 
-
-
-static DataCell* findTargetCell(WaitFreeQueueNode* node, unsigned long targetCellIdentifier) {
+static DataCell *_findDataCell(WaitFreeQueueNode **validNode, unsigned long targetCellIdentifier) {
 
     unsigned long currentIdentifier;
 
-    WaitFreeQueueNode* currentNode = node;
-    WaitFreeQueueNode* nextNode = NULL;
+    WaitFreeQueueNode *currentNode = *validNode;
+    WaitFreeQueueNode *nextNode = NULL;
 
-    for (currentIdentifier = currentNode->identifier; currentIdentifier < targetCellIdentifier / N; currentIdentifier++) {
+    for (currentIdentifier = currentNode->identifier;
+         currentIdentifier < targetCellIdentifier / N; currentIdentifier++) {
 
-        nextNode = currentNode->next;
+        nextNode = (WaitFreeQueueNode *) currentNode->next;
 
         if (nextNode == NULL) {
 
-            WaitFreeQueueNode* tmp = allocateWaitFreeQueueNode(currentIdentifier + 1);
-            if (!CAS(&node->next , NULL , tmp )) {
-                free(tmp);
-            }
+            WaitFreeQueueNode *newNode = _allocateAndInitializeWaitFreeQueueNode(currentIdentifier + 1);
+            if (!CAS(&currentNode->next, NULL, newNode))
+                free(newNode);
 
-            nextNode = currentNode->next;
+            nextNode = (WaitFreeQueueNode *) currentNode->next;
         }
 
         currentNode = nextNode;
     }
 
-    *node = *currentNode;
+    *validNode = currentNode;
     return &currentNode->cells[currentIdentifier % N];
 }
 
+WaitFreeQueue *allocateAndInitializeWaitFreeQueue() {
 
+    WaitFreeQueue *output = NULL;//allocateAlignedMemoryArea(PAGE_SIZE, sizeof(WaitFreeQueue));
+    output->headIndex = 0;
+    output->tailIndex = 0;
+    output->nodeList = _allocateAndInitializeWaitFreeQueueNode(0);
+
+    return output;
+}
+
+bool _isEnqueueFastSuccessful(WaitFreeQueue *waitFreeQueue, ThreadLocalState *threadLocalState, void *data) {
+
+    unsigned long targetDataCellIndex = FAA(&waitFreeQueue->tailIndex, 1);
+    DataCell *targetDataCell = _findDataCell(&threadLocalState->tailNode, targetDataCellIndex);
+
+    if (CAS(&targetDataCell->data, NULL, data))
+        return true;
+    else {
+        //*cid := i;
+        return false;
+    }
+}
+
+void _enqueueSlow (WaitFreeQueue *waitFreeQueue, ThreadLocalState *threadLocalState, void *data , int cell_id ) {
+
+    /*
+
+// publish enqueue request
+    r := &h->enq.req;
+    r - > val := v;
+    r - > state := (1, cell_id);
+// use a local tail pointer to traverse because
+// line 87 may need to find an earlier cell .
+    tmp_tail := h->tail;
+    do {
+// obtain new cell index and locate candidate cell
+        i := FAA (&q->T, 1);
+        c := find_cell(&tmp_tail, i);
+// Dijkstra ’s protocol
+        if (CAS (&c->enq, ?e, r) and
+        c.val = ?) {
+            try_to_claim_req(&r - > state, id, i); // for cell i
+// invariant : request claimed ( even if CAS failed )
+            break;
+        }
+    } while (r->state.pending);
+// invariant : req claimed for a cell ; find that cell
+    id := r->state.id;
+    c := find_cell(&h - > tail, id);
+    enq_commit(q, c, v, id);
+// invariant : req committed before enq_slow returns
+     */
+}
+
+
+void enqueue(WaitFreeQueue *waitFreeQueue, ThreadLocalState *threadLocalState, void *data) {
+
+    for (unsigned int currentStep = 0; currentStep < FAST_PATH_MAX_STEPS; currentStep++)
+        if (_isEnqueueFastSuccessful(waitFreeQueue, threadLocalState, data) == true)
+            return;
+
+    _enqueueSlow(waitFreeQueue, threadLocalState, data, 0);
+}
+
+ThreadLocalState* allocateAndInitializeThreadLocalState(WaitFreeQueue* waitFreeQueue) {
+
+    ThreadLocalState* output = NULL;//allocateAlignedMemoryArea(PAGE_SIZE, sizeof(ThreadLocalState));
+
+    output->headNode = waitFreeQueue->nodeList;
+    output->tailNode = waitFreeQueue->nodeList;
+
+    output->next = NULL;
+    output->Dequeue.peer = NULL;
+    output->Enqueue.peer = NULL;
+
+    return output;
+}
 
 /*
 // https://www.felixcloutier.com/x86/cmpxchg
