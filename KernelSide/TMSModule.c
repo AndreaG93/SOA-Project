@@ -9,6 +9,23 @@
 
 static struct class *TMSClass = NULL;
 
+/*
+void bho(void) {
+
+    snprintf(nodeName, sizeof(nodeName), MODULE_NODE_NAME"%d", i);
+
+    mycdev_devices[i].device = device_create(asp_mycdev_class, NULL,\
+			MKDEV(mycdev_major, mycdev_minor + i), NULL, nodeName);
+    if(IS_ERR_OR_NULL(mycdev_devices[i].device))
+    {
+
+        printk(KERN_WARNING "%s: Failed to Create Device Node %s\n", MODULE_NAME, nodeName);
+        nodeSetupFailed = true;
+        break;
+    }
+}
+*/
+
 void allocationDeviceDriverClass(void) {
 
     TMSClass = class_create(THIS_MODULE, MODULE_CLASS_NAME);

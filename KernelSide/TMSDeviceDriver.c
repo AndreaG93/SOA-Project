@@ -1,6 +1,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/fs.h>
+#include <linux/cdev.h>
 #include "./Common.h"
 #include "./TMSDeviceDriver.h"
 
@@ -31,9 +32,9 @@ long TMS_unlocked_ioctl(struct file *file, unsigned int x, unsigned long y) {
 }
 
 static int majorNumber;
+static struct cdev *charDeviceFile;
 
-
-
+static dev_t devNo;
 
 int registerTMSDeviceDriver(void) {
 
@@ -54,11 +55,29 @@ int registerTMSDeviceDriver(void) {
     } else {
         printk(KERN_NOTICE
         "'%s' char device is been successfully registered with major number %d!\n", DEVICE_DRIVER_NAME, majorNumber);
+
+        charDeviceFile = cdev_alloc();
+        cdev_init(charDeviceFile, &TimedMsgServiceOperation);
+
+
+        charDeviceFile->ops = &TimedMsgServiceOperation;
+        charDeviceFile->owner = THIS_MODULE;
+
+        devNo = MKDEV(majorNumber, 1);
+        int error = cdev_add(charDeviceFile, devNo, 1);
+        if(error) {
+            printk(KERN_WARNING "Error adding device");
+        }
+
         return SUCCESS;
     }
 }
 
 void unregisterTMSDeviceDriver(void) {
+
+    //"mknod /dev/TMS -c 238 0"
+
+    cdev_del(charDeviceFile);
 
     unregister_chrdev(majorNumber, DEVICE_DRIVER_NAME);
     printk(KERN_NOTICE
