@@ -1,2 +1,1 @@
-make clean
-sudo rmmod TMSModule
+sudo rmmod TimedMessagingSystemModule

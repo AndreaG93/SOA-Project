@@ -1,22 +1,46 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/err.h>
+#include <linux/device.h>
+
 #include "./Common.h"
+#include "./TMSModule.h"
 #include "./TMSDeviceDriver.h"
 
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Andrea Graziani <andrea.graziani93@outlook.it>");
-MODULE_VERSION("1.0a");
-MODULE_DESCRIPTION("A simple system service that allows exchanging messages across threads.");
+static struct class *TMSClass = NULL;
+
+void allocationDeviceDriverClass(void) {
+
+    TMSClass = class_create(THIS_MODULE, MODULE_CLASS_NAME);
+    if (IS_ERR_OR_NULL(TMSClass))
+        printk(KERN_WARNING "'%s' creation failed!\n", MODULE_CLASS_NAME);
+
+}
+
+void freeDeviceDriverClass(void) {
+
+    if(!IS_ERR_OR_NULL(TMSClass)){
+        class_destroy(TMSClass);
+        TMSClass = NULL;
+        printk(KERN_NOTICE "'%s' successfully freed up!\n", MODULE_CLASS_NAME);
+    }
+}
+
+
 
 int init_module() {
 
     registerTMSDeviceDriver();
-    printk(KERN_NOTICE "'%s' module successfully installed!\n", TMS_MODULE_NAME);
+
+    allocationDeviceDriverClass();
+
+    printk(KERN_NOTICE "'%s' module successfully installed!\n", MODULE_NAME);
     return 0;
 }
 
 
 void cleanup_module() {
+    freeDeviceDriverClass();
     unregisterTMSDeviceDriver();
-    printk(KERN_NOTICE "'%s' module successfully removed!\n", TMS_MODULE_NAME);
+    printk(KERN_NOTICE "'%s' module successfully removed!\n", MODULE_NAME);
 }

@@ -1,4 +1,5 @@
 make clean
 make
-sudo insmod ./TMSModule.ko
-modinfo TMSModule.ko
+sudo insmod ./TimedMessagingSystemModule.ko
+modinfo TimedMessagingSystemModule.ko
+make clean
