@@ -1,7 +1,9 @@
 #include "RCURedBlackTree.h"
+
 #include <linux/rbtree.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/rcupdate.h>
 
 typedef struct {
 
@@ -14,6 +16,10 @@ typedef struct {
 
 RCURedBlackTree *allocateRCURedBlackTree(void) {
     return &RB_ROOT;
+}
+
+RCURedBlackTree* cloneRCURedBlackTree(void) {
+    return NULL;
 }
 
 NodeContent *allocateNodeData(unsigned int id, void *data) {
@@ -55,33 +61,41 @@ void insert(RCURedBlackTree *root, unsigned int id, void *data) {
 
 void *search(RCURedBlackTree *root, unsigned int id) {
 
-    struct rb_node *node = root->rb_node;
-    printk("'%s' failed!\n", "DASDASDASDASDASD");
-    while (node) {
+    void *output = NULL;
+    struct rb_node *currentNode;
 
-        NodeContent *currentNodeContent = container_of(node, NodeContent, node);
+    //rcu_read_lock();
 
-        if (currentNodeContent == NULL)
-            printk("'%s' failed!\n", currentNodeContent->data);
+    currentNode = root->rb_node;
+
+    while (currentNode != NULL) {
+
+        NodeContent *currentNodeContent = container_of(currentNode, NodeContent, node);
 
         if (id < currentNodeContent->id)
-            node = node->rb_left;
+            currentNode = currentNode->rb_left;
         else if (id > currentNodeContent->id)
-            node = node->rb_right;
-        else
-            return currentNodeContent->data;
+            currentNode = currentNode->rb_right;
+        else {
+            output = currentNodeContent->data;
+            break;
+        }
+
     }
-    return NULL;
+
+    //rcu_read_unlock()
+    return output;
 }
 
 void delete(RCURedBlackTree *root, unsigned int id) {
-
+/*
     NodeContent *targetNodeContent = search(root, id);
 
     if (targetNodeContent != NULL) {
         rb_erase(&targetNodeContent->node, root);
         kfree(targetNodeContent);
     }
+    */
 }
 
 

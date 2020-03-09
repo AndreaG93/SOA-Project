@@ -7,6 +7,9 @@
 #include "RCURedBlackTree.h"
 #include "./Common.h"
 #include "./TMSDeviceDriver.h"
+#include <linux/kobject.h>
+#include <linux/sysfs.h>.
+
 
 static int majorNumber;
 //static struct cdev *charDeviceFile;
@@ -18,6 +21,30 @@ static unsigned int max_message_size = 8;
 
 static RCURedBlackTree *RCUTree;
 
+static struct kobject *example_kobject;
+
+static struct kobj_attribute *kObjectDriverAttribute;
+
+static struct attribute *driverAttribute;
+
+static int var = 9;
+
+
+
+static ssize_t
+var_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf) {//just one page of storage from buff
+
+    return sprintf(buf, "%d\n", var);
+}
+
+static ssize_t var_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf,
+                         size_t count) {//just one page of storage from buff
+
+    sscanf(buf, "%du", &var);
+    return count;
+}
+
+
 
 static int TMS_open(struct inode *inode, struct file *file) {
 
@@ -28,7 +55,8 @@ static int TMS_open(struct inode *inode, struct file *file) {
     //unsigned int mdsa = iminor(inode);
 
     printk(KERN_DEBUG
-    "'%s': 'TMS_open' function is been called on minor number %d   e %d!\n", DEVICE_DRIVER_NAME, iminor(inode), iminor(file->f_inode));
+    "'%s': 'TMS_open' function is been called on minor number %d   e %d!\n", DEVICE_DRIVER_NAME, iminor(inode), iminor(
+            file->f_inode));
 
 
     return 0;
@@ -36,7 +64,9 @@ static int TMS_open(struct inode *inode, struct file *file) {
 
 static ssize_t TMS_read(struct file *file, char *userBuffer, size_t size, loff_t *offset) {
 
-    printk(KERN_DEBUG "'%s': 'TMS_read' function is been called on device file (%d %d)!\n", DEVICE_DRIVER_NAME, imajor(file->f_inode), iminor(file->f_inode));
+    printk(KERN_DEBUG
+    "'%s': 'TMS_read' function is been called on device file (%d %d)!\n", DEVICE_DRIVER_NAME, imajor(
+            file->f_inode), iminor(file->f_inode));
 
     unsigned long bytesNotCopied;
 
@@ -84,7 +114,6 @@ static struct file_operations TimedMsgServiceOperation = {
 };
 
 
-
 int registerTMSDeviceDriver(void) {
 
     majorNumber = register_chrdev(0, DEVICE_DRIVER_NAME, &TimedMsgServiceOperation);
@@ -117,7 +146,7 @@ int registerTMSDeviceDriver(void) {
         RCUTree = kmalloc(sizeof(RCUTree), GFP_KERNEL);
         RCUTree->rb_node = NULL;
 
-        kernelBuffer = kmalloc(6* sizeof(char), GFP_KERNEL);
+        kernelBuffer = kmalloc(6 * sizeof(char), GFP_KERNEL);
         if (kernelBuffer == NULL) {
             printk(KERN_WARNING
             "'%s' allocation failed!\n", DEVICE_DRIVER_NAME);
@@ -129,13 +158,30 @@ int registerTMSDeviceDriver(void) {
 
         if (RCUTree == NULL)
             printk(KERN_WARNING
-            "'%s' allocation failed!\n", DEVICE_DRIVER_NAME);
+        "'%s' allocation failed!\n", DEVICE_DRIVER_NAME);
 
         insert(RCUTree, 0, kernelBuffer);
         insert(RCUTree, 1, kernelBuffer);
 
-        printk(KERN_WARNING "'%s' '%s'!\n", DEVICE_DRIVER_NAME, search(RCUTree, 0));
-        printk(KERN_WARNING "'%s' '%s'!\n", DEVICE_DRIVER_NAME, search(RCUTree, 1));
+        printk(KERN_WARNING
+        "'%s' '%s'!\n", DEVICE_DRIVER_NAME, search(RCUTree, 0));
+        printk(KERN_WARNING
+        "'%s' '%s'!\n", DEVICE_DRIVER_NAME, search(RCUTree, 1));
+
+
+        driverAttribute = kmalloc(sizeof(struct attribute), GFP_KERNEL);
+        driverAttribute->name = "prova";
+        driverAttribute->mode = S_IWUSR;
+
+        kObjectDriverAttribute = kmalloc(sizeof(struct kobj_attribute), GFP_KERNEL);
+        kObjectDriverAttribute->attr = *driverAttribute;
+        kObjectDriverAttribute->show = var_show;
+        kObjectDriverAttribute->store = var_store;
+
+
+        example_kobject = kobject_create_and_add("riko", kernel_kobj);
+        sysfs_create_file(example_kobject, &kObjectDriverAttribute->attr);
+
 
         return SUCCESS;
     }
@@ -153,5 +199,7 @@ void unregisterTMSDeviceDriver(void) {
 
     if (kernelBuffer)
         kfree(kernelBuffer);
+
+    kobject_put(example_kobject);
 
 }
