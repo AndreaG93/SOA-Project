@@ -21,6 +21,8 @@ static unsigned int max_message_size = 8;
 
 static RCURedBlackTree *RCUTree;
 
+static struct kobject *example_kobject_parent;
+
 static struct kobject *example_kobject;
 
 static struct kobj_attribute *kObjectDriverAttribute;
@@ -171,7 +173,7 @@ int registerTMSDeviceDriver(void) {
 
         driverAttribute = kmalloc(sizeof(struct attribute), GFP_KERNEL);
         driverAttribute->name = "prova";
-        driverAttribute->mode = S_IWUSR;
+        driverAttribute->mode = S_IWUSR | S_IRWXG;
 
         kObjectDriverAttribute = kmalloc(sizeof(struct kobj_attribute), GFP_KERNEL);
         kObjectDriverAttribute->attr = *driverAttribute;
@@ -179,7 +181,10 @@ int registerTMSDeviceDriver(void) {
         kObjectDriverAttribute->store = var_store;
 
 
-        example_kobject = kobject_create_and_add("riko", kernel_kobj);
+        example_kobject_parent = kobject_create_and_add("riko", kernel_kobj);
+
+        example_kobject = kobject_create_and_add("riko1", example_kobject_parent);
+
         sysfs_create_file(example_kobject, &kObjectDriverAttribute->attr);
 
 
