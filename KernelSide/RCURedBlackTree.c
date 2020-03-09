@@ -56,10 +56,13 @@ void insert(RCURedBlackTree *root, unsigned int id, void *data) {
 void *search(RCURedBlackTree *root, unsigned int id) {
 
     struct rb_node *node = root->rb_node;
-
+    printk("'%s' failed!\n", "DASDASDASDASDASD");
     while (node) {
 
         NodeContent *currentNodeContent = container_of(node, NodeContent, node);
+
+        if (currentNodeContent == NULL)
+            printk("'%s' failed!\n", currentNodeContent->data);
 
         if (id < currentNodeContent->id)
             node = node->rb_left;

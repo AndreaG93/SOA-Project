@@ -17,7 +17,7 @@ void readTest() {
     char buffer[6];
 
     errno = 0;
-    fileDescriptor = open("/dev/TMS", O_RDONLY);
+    fileDescriptor = open("/dev/TMS1", O_RDONLY);
 
     if (fileDescriptor == 1) {
         fprintf(stderr, "[ERROR] %s", strerror(errno));

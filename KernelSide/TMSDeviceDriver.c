@@ -16,20 +16,7 @@ static char *kernelBuffer;
 
 static unsigned int max_message_size = 8;
 
-RCURedBlackTree *RCUTree;
-
-
-
-
-
-
-
-
-
-
-
-
-
+static RCURedBlackTree *RCUTree;
 
 
 static int TMS_open(struct inode *inode, struct file *file) {
@@ -49,11 +36,14 @@ static int TMS_open(struct inode *inode, struct file *file) {
 
 static ssize_t TMS_read(struct file *file, char *userBuffer, size_t size, loff_t *offset) {
 
+    printk(KERN_DEBUG "'%s': 'TMS_read' function is been called on device file (%d %d)!\n", DEVICE_DRIVER_NAME, imajor(file->f_inode), iminor(file->f_inode));
+
     unsigned long bytesNotCopied;
 
-    void *data = search(RCUTree, iminor(file->f_inode));
-    if (data != NULL)
+    void *data = search(RCUTree, 0);
+    if (data != NULL) {
         bytesNotCopied = copy_to_user(userBuffer, data, 6);
+    }
 
     return 0;
 }
@@ -124,6 +114,9 @@ int registerTMSDeviceDriver(void) {
         }
 */
 
+        RCUTree = kmalloc(sizeof(RCUTree), GFP_KERNEL);
+        RCUTree->rb_node = NULL;
+
         kernelBuffer = kmalloc(6* sizeof(char), GFP_KERNEL);
         if (kernelBuffer == NULL) {
             printk(KERN_WARNING
@@ -132,10 +125,17 @@ int registerTMSDeviceDriver(void) {
 
         strcpy(kernelBuffer, "Andrea");
 
-        RCUTree = allocateRCURedBlackTree();
+        //RCUTree = &RB_ROOT;
+
+        if (RCUTree == NULL)
+            printk(KERN_WARNING
+            "'%s' allocation failed!\n", DEVICE_DRIVER_NAME);
 
         insert(RCUTree, 0, kernelBuffer);
         insert(RCUTree, 1, kernelBuffer);
+
+        printk(KERN_WARNING "'%s' '%s'!\n", DEVICE_DRIVER_NAME, search(RCUTree, 0));
+        printk(KERN_WARNING "'%s' '%s'!\n", DEVICE_DRIVER_NAME, search(RCUTree, 1));
 
         return SUCCESS;
     }
