@@ -4,25 +4,12 @@
 
 #include <linux/rbtree.h>
 
-typedef RCURedBlackTree struct rb_root;
-typedef RCURedBlackTreeNode struct rb_node;
-
-typedef struct {
-
-    unsigned int deviceFileMinorNumber;
-    RCURedBlackTreeNode node;
-    char *string;           // TODO must became wait free queue!!!!
-
-} TreeNodeContent;
-__attribute__((aligned(sizeof(long))));
-
+typedef struct rb_root RCURedBlackTree;
 
 RCURedBlackTree *allocateRCURedBlackTree(void);
 
-void freeRCURedBlackTree(RCURedBlackTree *root);
+void insert(RCURedBlackTree *root, unsigned int id, void *data);
 
-void insert(RCURedBlackTree *root, TreeNodeContent *data);
+void *search(RCURedBlackTree *root, unsigned int id);
 
-TreeNodeContent *search(RCURedBlackTree *root, unsigned int deviceFileMinorNumber);
-
-void delete(RCURedBlackTree *root, unsigned int deviceFileMinorNumber);
+void delete(RCURedBlackTree *root, unsigned int id);

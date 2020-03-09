@@ -1,37 +1,84 @@
 #include "RCURedBlackTree.h"
 #include <linux/rbtree.h>
+#include <linux/kernel.h>
+#include <linux/slab.h>
 
-void insert(RCURedBlackTree *root, TreeNodeContent *data)
-{
-    struct rb_node **new = &(root->rb_node), *parent = NULL;
+typedef struct {
+
+    unsigned int id;
+    struct rb_node node;
+
+    void *data;
+
+} NodeContent __attribute__((aligned(sizeof(long))));
+
+RCURedBlackTree *allocateRCURedBlackTree(void) {
+    return &RB_ROOT;
+}
+
+NodeContent *allocateNodeData(unsigned int id, void *data) {
+
+    NodeContent *output = kmalloc(sizeof(NodeContent), GFP_KERNEL);
+
+    if (output == NULL)
+        printk("'%s': 'NodeContent' allocation FAILED!\n", "DSAdsasfasdfds");  // TODO CORRECT PLEASE
+    else {
+        output->id = id;
+        output->data = data;
+    }
+
+    return output;
+}
+
+void insert(RCURedBlackTree *root, unsigned int id, void *data) {
+
+    NodeContent *nodeContent = allocateNodeData(id, data);
+    NodeContent *currentNodeContent = NULL;
+
+    struct rb_node **new = &(root->rb_node);
+    struct rb_node *parent = NULL;
 
     while (*new) {
-        RBTreeNodeContent *this = container_of(*new, RBTreeNodeContent, node);
 
+        currentNodeContent = container_of(*new, NodeContent, node);
         parent = *new;
-        if (data->deviceFileMinorNumber < this->deviceFileMinorNumber)
+
+        if (nodeContent->id < currentNodeContent->id)
             new = &((*new)->rb_left);
         else
             new = &((*new)->rb_right);
     }
 
-    rb_link_node(&data->node, parent, new);
-    rb_insert_color(&data->node, root);
+    rb_link_node(&nodeContent->node, parent, new);
+    rb_insert_color(&nodeContent->node, root);
 }
 
-TreeNodeContent *search(RCURedBlackTree *root, unsigned int deviceFileMinorNumber)
-{
+void *search(RCURedBlackTree *root, unsigned int id) {
+
     struct rb_node *node = root->rb_node;
 
     while (node) {
-        TreeNodeContent *data = container_of(node, struct mytype, node);
 
-        if (data->deviceFileMinorNumber < this->deviceFileMinorNumber)
+        NodeContent *currentNodeContent = container_of(node, NodeContent, node);
+
+        if (id < currentNodeContent->id)
             node = node->rb_left;
-        else if (data->deviceFileMinorNumber > this->deviceFileMinorNumber)
+        else if (id > currentNodeContent->id)
             node = node->rb_right;
         else
-            return data;
+            return currentNodeContent->data;
     }
     return NULL;
 }
+
+void delete(RCURedBlackTree *root, unsigned int id) {
+
+    NodeContent *targetNodeContent = search(root, id);
+
+    if (targetNodeContent != NULL) {
+        rb_erase(&targetNodeContent->node, root);
+        kfree(targetNodeContent);
+    }
+}
+
+

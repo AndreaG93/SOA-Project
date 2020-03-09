@@ -2,9 +2,9 @@
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/cdev.h>
-
 #include <linux/uaccess.h>
 
+#include "RCURedBlackTree.h"
 #include "./Common.h"
 #include "./TMSDeviceDriver.h"
 
@@ -16,9 +16,7 @@ static char *kernelBuffer;
 
 static unsigned int max_message_size = 8;
 
-
-
-struct *rb_root redBlackTree;
+RCURedBlackTree *RCUTree;
 
 
 
@@ -53,7 +51,9 @@ static ssize_t TMS_read(struct file *file, char *userBuffer, size_t size, loff_t
 
     unsigned long bytesNotCopied;
 
-    bytesNotCopied = copy_to_user(userBuffer, kernelBuffer, 6);
+    void *data = search(RCUTree, iminor(file->f_inode));
+    if (data != NULL)
+        bytesNotCopied = copy_to_user(userBuffer, data, 6);
 
     return 0;
 }
@@ -132,8 +132,10 @@ int registerTMSDeviceDriver(void) {
 
         strcpy(kernelBuffer, "Andrea");
 
+        RCUTree = allocateRCURedBlackTree();
 
-        redBlackTree = &RB_ROOT;
+        insert(RCUTree, 0, kernelBuffer);
+        insert(RCUTree, 1, kernelBuffer);
 
         return SUCCESS;
     }
