@@ -1,41 +1,19 @@
+#include "RCURedBlackTree.h"
+#include "ModuleInformations.h"
+#include "KernelLogManagement.h"
+#include "TMSDeviceDriver.h"
+
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/cdev.h>
 #include <linux/uaccess.h>
-
-#include "RCURedBlackTree.h"
-#include "./Common.h"
-#include "./TMSDeviceDriver.h"
 #include <linux/kobject.h>
 #include <linux/sysfs.h>.
 
-#define "max_message_size"
-
-
 static int majorNumber;
-//static struct cdev *charDeviceFile;
-//static dev_t devNo;
-
-static char *kernelBuffer;
-
-static unsigned int max_message_size = 8;
-
 static RCURedBlackTree *RCUTree;
 static kobject *kObjectParent;
-
-
-static struct kobject *example_kobject_parent;
-
-static struct kobject *example_kobject;
-
-static struct kobj_attribute *kObjectDriverAttribute;
-
-static struct attribute *driverAttribute;
-
-
-static int var = 9;
-
 
 static ssize_t var_show(struct kobject *kobj, struct attribute *attr, char *buf) {
 
@@ -62,8 +40,7 @@ static ssize_t var_store(struct kobject *kobj, struct attribute *attr, const cha
 
 static int TMS_open(struct inode *inode, struct file *file) {
 
-    printk(KERN_DEBUG
-    "'%s': 'TMS_open' function is been called!\n", DEVICE_DRIVER_NAME);
+    printk("'%s': 'TMS_open' function is been called!\n", DEVICE_DRIVER_NAME);
 
     //unsigned int mdsa = iminor(file->f_inode);
     //unsigned int mdsa = iminor(inode);
@@ -128,14 +105,14 @@ static struct file_operations TimedMsgServiceOperation = {
 };
 
 
-struct sysfs_ops *allocateSysFileSystemOperation(void) {
+struct sysfs_ops *allocateAndInitializeSysFileSystemOperation(void) {
 
     struct sysfs_ops *output;
 
     output = kmalloc(sizeof(struct sysfs_ops), GFP_KERNEL);
-    if (output == NULL) {
-        printk("kmalloc FAILED");
-    } else {
+    if (output == NULL)
+        printWarningMessageToKernelLog("'struct sysfs_ops' allocation failed!");
+    else {
         output->show = var_show;
         output->store = var_store;
     }
@@ -143,38 +120,63 @@ struct sysfs_ops *allocateSysFileSystemOperation(void) {
     return output;
 }
 
+void createAndInitializeNewWaitFreeQueue(unsigned long id) {
 
-WaitFreeQueue *createNewWaitFreeQueue(unsigned long id) {
-
-    WaitFreeQueue *output;
+    WaitFreeQueue *waitFreeQueue;
     struct kObject *kObject;
     struct kobj_type *kType;
-
-    output = NULL;
+    struct attribute_group **attributesGroups;
+    struct sysfs_ops *sysFSOperations;
 
     kObject = kobject_create_and_add("0", kObjectParent);
     if (currentKObject == NULL) {
 
-        printk("err");
+        printWarningMessageToKernelLog("'kobject_create_and_add' failed!");
+        return;
 
     } else {
 
         ktype = kmalloc(sizeof(struct kobj_type), GFP_KERNEL);
         if (ktype == NULL) {
 
-            kobject_put(kObject);
-            kfree(kObject)
+            printWarningMessageToKernelLog("'struct kobj_type' allocation failed!");
+            goto FAILURE_FREEING_K_OBJECT;
 
         } else {
 
-            ktype->default_groups = &allocateKObjectAttributeGroup(2, S_IWUSR | S_IRWXG, "max_message_size", "max_storage_size");
-            ktype->sysfs_ops = allocateSysFileSystemOperation();
+            attribute_group = &allocateKObjectAttributeGroup(2, S_IWUSR | S_IRWXG, "max_message_size",
+                                                             "max_storage_size");
+            if (attribute_group == NULL) {
 
-            output = allocateAndInitializeWaitFreeQueue(5, 5, kObject);
+                printWarningMessageToKernelLog("'allocateKObjectAttributeGroup' failed!");
+
+                goto FAILURE_FREEING_K_OBJECT;
+            }
+
+            sysFSOperations = allocateAndInitializeSysFileSystemOperation();
+            if (attribute_group == NULL) {
+
+                printWarningMessageToKernelLog("'allocateSysFileSystemOperation' failed!");
+
+                freeAttributeGroup(attribute_group[0], 2);
+                goto FAILURE_FREEING_K_OBJECT;
+            }
+
+            ktype->default_groups = attribute_group;
+            ktype->sysfs_ops = sysFSOperations;
+
+            waitFreeQueue = allocateAndInitializeWaitFreeQueue(5, 5, kObject);
+
+            insert(RCUTree, id, waitFreeQueue)
+
+            createAttributeGroupSysFiles();
         }
     }
 
-    return output;
+    FAILURE_FREEING_K_OBJECT:
+
+    kobject_put(kObject);
+    kfree(kObject)
 }
 
 
@@ -182,66 +184,20 @@ int registerTMSDeviceDriver(void) {
 
     majorNumber = register_chrdev(0, DEVICE_DRIVER_NAME, &TimedMsgServiceOperation);
     if (majorNumber < 0) {
-        printk(KERN_WARNING
-        "'%s' char device registration failed!\n", DEVICE_DRIVER_NAME);
+        printWarningMessageToKernelLog("char device registration failed! ");
         return FAILURE;
-    } else
-        printk(KERN_NOTICE
-    "'%s' char device is been successfully registered with major number %d!\n", DEVICE_DRIVER_NAME, majorNumber);
+    } else {
+        printk("'%s' char device is been successfully registered with major number %d!\n", MODULE_NAME, majorNumber);
 
+        RCUTree = kmalloc(sizeof(RCUTree), GFP_KERNEL);
+        RCUTree->rb_node = NULL;
 
-    RCUTree = kmalloc(sizeof(RCUTree), GFP_KERNEL);
-    RCUTree->rb_node = NULL;
+        kObjectParent = kobject_create_and_add("TSM", kernel_kobj);
 
-    kObjectParent = kobject_create_and_add("TSM", kernel_kobj);
+        createAndInitializeNewWaitFreeQueue(0);
 
-
-    struct *currentKObject = kobject_create_and_add("0", kObjectParent);
-    if (currentKObject == NULL)
-        printk("err");
-
-    ktype = kmalloc(sizeof(struct kobj_type), GFP_KERNEL);
-    const struct attribute_group *group = allocateKObjectAttributeGroup(2, S_IWUSR | S_IRWXG, "max_message_size",
-                                                                        "max_storage_size");
-
-
-    WaitFreeQueue *waitFreeQueue = allocateAndInitializeWaitFreeQueue(5, 9,
-    struct kobject *kObject);
-
-
-    insert(RCUTree, 0, kernelBuffer);
-    insert(RCUTree, 1, kernelBuffer);
-
-
-    ktype->default_groups = &group;
-    ktype->sysfs_ops = allocateSysFileSystemOperation();
-
-
-    /*
-    kObjectDriverAttribute = kmalloc(sizeof(struct kobj_attribute), GFP_KERNEL);
-    kObjectDriverAttribute->attr = driverAttribute[0];
-    kObjectDriverAttribute->show = var_show;
-    kObjectDriverAttribute->store = var_store;
-*/
-
-    example_kobject_parent = kobject_create_and_add("you1", kernel_kobj);
-
-    example_kobject = kobject_create_and_add("you2", example_kobject_parent);
-    example_kobject->ktype = ktype;
-
-
-    sysfs_create_file(example_kobject, example_kobject->ktype->default_groups[0]->attrs[0]);
-    sysfs_create_file(example_kobject, example_kobject->ktype->default_groups[0]->attrs[1]);
-
-
-
-    //sysfs_create_group(example_kobject, group);
-
-    //sysfs_create_file(example_kobject, &kObjectDriverAttribute->attr);
-    //sysfs_create_file(example_kobject, &kObjectDriverAttribute->attr);
-
-    return SUCCESS;
-
+        return SUCCESS;
+    }
 }
 
 void unregisterTMSDeviceDriver(void) {
@@ -251,12 +207,7 @@ void unregisterTMSDeviceDriver(void) {
     //cdev_del(charDeviceFile);
 
     unregister_chrdev(majorNumber, DEVICE_DRIVER_NAME);
-    printk(KERN_NOTICE
-    "'%s' char device is been successfully unregistered!\n", DEVICE_DRIVER_NAME);
+    printMessageToKernelLog("char device is been successfully unregistered!\n")
 
-    if (kernelBuffer)
-        kfree(kernelBuffer);
-
-    kobject_put(example_kobject);
-
+    kobject_put(kObjectParent);
 }

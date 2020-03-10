@@ -1,28 +1,43 @@
 #include "KObjectManagement.h"
+#include "./KernelLogManagement.h"
+#include <linux/kobject.h>
+#include <linux/sysfs.h>.
 
-struct kobject* allocateAddingToSysFilesystemKObject(struct kobject* parent, char* name) {
+void freeKObject(struct kobject *input) {
 
-    return kobject_create_and_add(name, kernel_kobj);
+    freeAttributeGroup(input->ktype->default_groups);
+    kfree(input->ktype->sysfs_ops);
+    kfree(input->ktype);
+    kfree(input->name);
 
+    kfree(input);
+}
+
+void removeAttributeGroupSysFiles(struct kobject *parentKObject, const struct attribute_group *attributeGroup, unsigned long attributeGroupSize) {
+
+    unsigned long currentAttributeIndex = 0;
+
+    for (currentAttributeIndex = 0; currentAttributeIndex < attributeGroupSize; currentAttributeIndex++)
+        sysfs_remove_file(parentKObject, *(attributeGroup->attrs + currentAttributeIndex));
 }
 
 const struct attribute_group *allocateAttributeGroup(unsigned int attributeGroupSize, umode_t defaultAttributesMode, ...) {
 
     struct attribute_group *output;
     struct attribute **attributeList;
-    struct attribute* attribute;
+    struct attribute *attribute;
 
     output = kmalloc(sizeof(const struct attribute_group), GFP_KERNEL);
     if (output == NULL)
-        printk("kmalloc FAILED"); // TODO
+        printWarningMessageToKernelLog("'struct attribute_group' allocation failed!");
     else {
 
         attributeList = kmalloc(sizeof(struct attribute *) * groupSize, GFP_KERNEL);
         if (attributeList == NULL) {
 
-            printk("kmalloc FAILED"); // TODO
+            printWarningMessageToKernelLog("'struct attribute *' allocation failed!");
             kfree(output);
-            output = NULL;
+            return NULL;
 
         } else {
 
@@ -33,9 +48,18 @@ const struct attribute_group *allocateAttributeGroup(unsigned int attributeGroup
             for (index = 0; index < groupSize; index++) {
 
                 attribute = kmalloc(sizeof(struct attribute), GFP_KERNEL);
-                // TODO ERROR!!!
+                if (attribute == NULL) {
 
-                attribute->name = va_arg(ap, char *);
+                    printWarningMessageToKernelLog("'struct attribute' allocation failed!");
+                    for (index--; index >= 0; index--)
+                        kfree(*(attributeList + index));
+
+                    kfree(output);
+                    return NULL;
+                }
+
+                attribute->name = va_arg(ap,
+                char *);
                 attribute->mode = defaultAttributesMode;
 
                 *(attributeList + index) = attribute;
@@ -45,20 +69,10 @@ const struct attribute_group *allocateAttributeGroup(unsigned int attributeGroup
 
             output->name = "AttributesGroup";
             output->attrs = attributeList;
+
+            return output;
         }
     }
-
-    return output;
-}
-
-void freeKObject(struct kobject* input) {
-
-    freeAttributeGroup(input->ktype->default_groups);
-    kfree(input->ktype->sysfs_ops);
-    kfree(input->ktype);
-    kfree(input->name);
-
-    kfree(input);
 }
 
 void freeAttributeGroup(const struct attribute_group *input, unsigned long attributeGroupSize) {
@@ -80,13 +94,11 @@ void createAttributeGroupSysFiles(struct kobject *parentKObject, const struct at
         sysfs_create_file(parentKObject, *(attributeGroup->attrs + currentAttributeIndex));
 }
 
-void removeAttributeGroupSysFiles(struct kobject *parentKObject, const struct attribute_group *attributeGroup, unsigned long attributeGroupSize) {
+void removeKObjectFromSystem(struct kobject *input, unsigned long attributeGroupSize) {
 
-    unsigned long currentAttributeIndex = 0;
+    removeAttributeGroupSysFiles(input, input->ktype->default_groups[0], attributeGroupSize);
+    kobject_put(input);
 
-    for (currentAttributeIndex = 0; currentAttributeIndex < attributeGroupSize; currentAttributeIndex++)
-        sysfs_remove_file(parentKObject, *(attributeGroup->attrs + currentAttributeIndex));
+    freeAttributeGroup(input->ktype->default_groups[0]);
+    freeKObject(input);
 }
-
-
-

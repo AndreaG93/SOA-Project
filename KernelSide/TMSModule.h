@@ -2,8 +2,7 @@
 
 #include <linux/module.h>
 
-#define MODULE_NAME "TimedMessagingSystemModule"
-#define MODULE_CLASS_NAME "TimedMessagingSystemModule_class"
+
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Andrea Graziani <andrea.graziani93@outlook.it>");

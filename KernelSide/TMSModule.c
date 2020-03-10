@@ -3,7 +3,7 @@
 #include <linux/err.h>
 #include <linux/device.h>
 
-#include "./Common.h"
+#include "ModuleInformations.h"
 #include "./TMSModule.h"
 #include "./TMSDeviceDriver.h"
 
