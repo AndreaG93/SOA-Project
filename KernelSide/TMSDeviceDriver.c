@@ -29,23 +29,24 @@ static struct kobj_attribute *kObjectDriverAttribute;
 
 static struct attribute *driverAttribute;
 
+static struct kobj_type *ktype;
+
+
 static int var = 9;
 
 
-
 static ssize_t
-var_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf) {//just one page of storage from buff
+var_show(struct kobject *kobj, struct attribute *attr, char *buf) {//just one page of storage from buff
 
     return sprintf(buf, "%d\n", var);
 }
 
-static ssize_t var_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf,
+static ssize_t var_store(struct kobject *kobj, struct attribute *attr, const char *buf,
                          size_t count) {//just one page of storage from buff
 
     sscanf(buf, "%du", &var);
     return count;
 }
-
 
 
 static int TMS_open(struct inode *inode, struct file *file) {
@@ -116,6 +117,67 @@ static struct file_operations TimedMsgServiceOperation = {
 };
 
 
+const struct attribute_group *
+allocateKObjectAttributeGroup(unsigned int groupSize, umode_t defaultAttributesMode, ...) {
+
+    struct attribute_group *output;
+    struct attribute **attributeList;
+    struct attribute* attribute;
+
+    output = kmalloc(sizeof(const struct attribute_group), GFP_KERNEL);
+    if (output == NULL)
+        printk("kmalloc FAILED");
+    else {
+
+        attributeList = kmalloc(sizeof(struct attribute *) * groupSize, GFP_KERNEL);
+        if (attributeList == NULL) {
+
+            printk("kmalloc FAILED");
+            kfree(output);
+            output = NULL;
+
+        } else {
+
+            va_list ap;
+            va_start(ap, groupSize);
+
+            int index;
+            for (index = 0; index < groupSize; index++) {
+
+                attribute = kmalloc(sizeof(struct attribute), GFP_KERNEL);
+
+                attribute->name = va_arg(ap, char *);
+                attribute->mode = defaultAttributesMode;
+
+                *(attributeList + index) = attribute;
+            }
+
+            va_end(ap);
+            
+            output->name = "AttributesGroup";
+            output->attrs = attributeList;
+        }
+    }
+
+    return output;
+}
+
+struct sysfs_ops *allocateSysFileSystemOperation(void) {
+
+    struct sysfs_ops *output;
+
+    output = kmalloc(sizeof(struct sysfs_ops), GFP_KERNEL);
+    if (output == NULL) {
+        printk("kmalloc FAILED");
+    } else {
+        output->show = var_show;
+        output->store = var_store;
+    }
+
+    return output;
+}
+
+
 int registerTMSDeviceDriver(void) {
 
     majorNumber = register_chrdev(0, DEVICE_DRIVER_NAME, &TimedMsgServiceOperation);
@@ -171,22 +233,32 @@ int registerTMSDeviceDriver(void) {
         "'%s' '%s'!\n", DEVICE_DRIVER_NAME, search(RCUTree, 1));
 
 
-        driverAttribute = kmalloc(sizeof(struct attribute), GFP_KERNEL);
-        driverAttribute->name = "prova";
-        driverAttribute->mode = S_IWUSR | S_IRWXG;
+        ktype = kmalloc(sizeof(struct kobj_type), GFP_KERNEL);
+        const struct attribute_group *group = allocateKObjectAttributeGroup(2, S_IWUSR | S_IRWXG, "attr1", "attr2");
+        ktype->default_groups = &group;
+        ktype->sysfs_ops = allocateSysFileSystemOperation();
 
+
+        /*
         kObjectDriverAttribute = kmalloc(sizeof(struct kobj_attribute), GFP_KERNEL);
-        kObjectDriverAttribute->attr = *driverAttribute;
+        kObjectDriverAttribute->attr = driverAttribute[0];
         kObjectDriverAttribute->show = var_show;
         kObjectDriverAttribute->store = var_store;
+*/
+
+        example_kobject_parent = kobject_create_and_add("you1", kernel_kobj);
+
+        example_kobject = kobject_create_and_add("you2", example_kobject_parent);
+        example_kobject->ktype = ktype;
 
 
-        example_kobject_parent = kobject_create_and_add("riko", kernel_kobj);
+        sysfs_create_file(example_kobject, example_kobject->ktype->default_groups[0]->attrs[0]);
+        sysfs_create_file(example_kobject, example_kobject->ktype->default_groups[0]->attrs[1]);
 
-        example_kobject = kobject_create_and_add("riko1", example_kobject_parent);
+        //sysfs_create_group(example_kobject, group);
 
-        sysfs_create_file(example_kobject, &kObjectDriverAttribute->attr);
-
+        //sysfs_create_file(example_kobject, &kObjectDriverAttribute->attr);
+        //sysfs_create_file(example_kobject, &kObjectDriverAttribute->attr);
 
         return SUCCESS;
     }
