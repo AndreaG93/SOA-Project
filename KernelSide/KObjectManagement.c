@@ -1,12 +1,15 @@
 #include <linux/kobject.h>
-#include <linux/sysfs.h>.
+#include <linux/sysfs.h>
+#include <linux/kernel.h>
+#include <linux/slab.h>
 
-#include "ModuleInformations.h"
 #include "KObjectManagement.h"
+#include "ModuleMetadata.h"
 
-void freeKObject(struct kobject *input) {
+void freeKObject(struct kobject *input, unsigned long attributeGroupSize) {
 
-    freeAttributeGroup(input->ktype->default_groups);
+    freeAttributeGroup(input->ktype->default_groups[0], attributeGroupSize);
+
     kfree(input->ktype->sysfs_ops);
     kfree(input->ktype);
     kfree(input->name);
@@ -22,7 +25,7 @@ void removeAttributeGroupSysFiles(struct kobject *parentKObject, const struct at
         sysfs_remove_file(parentKObject, *(attributeGroup->attrs + currentAttributeIndex));
 }
 
-const struct attribute_group *allocateAttributeGroup(unsigned int attributeGroupSize, umode_t defaultAttributesMode, ...) {
+const struct attribute_group *allocateAttributeGroup(umode_t defaultAttributesMode, unsigned int attributeGroupSize, ...) {
 
     struct attribute_group *output;
     struct attribute **attributeList;
@@ -33,20 +36,21 @@ const struct attribute_group *allocateAttributeGroup(unsigned int attributeGroup
         printk("'%s': 'const struct attribute_group' allocation failed!\n", MODULE_NAME);
     else {
 
-        attributeList = kmalloc(sizeof(struct attribute *) * groupSize, GFP_KERNEL);
+        attributeList = kmalloc(sizeof(struct attribute *) * attributeGroupSize, GFP_KERNEL);
         if (attributeList == NULL) {
 
             printk("'%s': 'struct attribute *' allocation failed!\n", MODULE_NAME);
             kfree(output);
+
             return NULL;
 
         } else {
 
             va_list ap;
-            va_start(ap, groupSize);
+            va_start(ap, attributeGroupSize);
 
             int index;
-            for (index = 0; index < groupSize; index++) {
+            for (index = 0; index < attributeGroupSize; index++) {
 
                 attribute = kmalloc(sizeof(struct attribute), GFP_KERNEL);
                 if (attribute == NULL) {
@@ -59,8 +63,7 @@ const struct attribute_group *allocateAttributeGroup(unsigned int attributeGroup
                     return NULL;
                 }
 
-                attribute->name = va_arg(ap,
-                char *);
+                attribute->name = va_arg(ap, char *);
                 attribute->mode = defaultAttributesMode;
 
                 *(attributeList + index) = attribute;
@@ -70,10 +73,10 @@ const struct attribute_group *allocateAttributeGroup(unsigned int attributeGroup
 
             output->name = "AttributesGroup";
             output->attrs = attributeList;
-
-            return output;
         }
     }
+
+    return output;
 }
 
 void freeAttributeGroup(const struct attribute_group *input, unsigned long attributeGroupSize) {
@@ -87,9 +90,12 @@ void freeAttributeGroup(const struct attribute_group *input, unsigned long attri
     kfree(input);
 }
 
-void createAttributeGroupSysFiles(struct kobject *parentKObject, const struct attribute_group *attributeGroup, unsigned long attributeGroupSize) {
+void createAttributeGroupSysFiles(struct kobject *parentKObject, unsigned long attributeGroupSize) {
 
-    unsigned long currentAttributeIndex = 0;
+    unsigned long currentAttributeIndex;
+    const struct attribute_group *attributeGroup;
+
+    attributeGroup = parentKObject->ktype->default_groups[0];
 
     for (currentAttributeIndex = 0; currentAttributeIndex < attributeGroupSize; currentAttributeIndex++)
         sysfs_create_file(parentKObject, *(attributeGroup->attrs + currentAttributeIndex));
@@ -100,6 +106,6 @@ void removeKObjectFromSystem(struct kobject *input, unsigned long attributeGroup
     removeAttributeGroupSysFiles(input, input->ktype->default_groups[0], attributeGroupSize);
     kobject_put(input);
 
-    freeAttributeGroup(input->ktype->default_groups[0]);
-    freeKObject(input);
+    freeAttributeGroup(input->ktype->default_groups[0], attributeGroupSize);
+    freeKObject(input, attributeGroupSize);
 }

@@ -1,7 +1,9 @@
-#include "WaitFreeQueue.h"
+#include <linux/slab.h>
 #include <linux/kobject.h>
 
-WaitFreeQueue* allocateAndInitializeWaitFreeQueue(unsigned long maxMessageSize, unsigned long maxStorageSize, struct kobject *kObject); {
+#include "WaitFreeQueue.h"
+
+WaitFreeQueue* allocateAndInitializeWaitFreeQueue(unsigned long maxMessageSize, unsigned long maxStorageSize, struct kobject *kObject) {
 
     WaitFreeQueue* output = kmalloc(sizeof(WaitFreeQueue), GFP_KERNEL);
     if (output == NULL) {

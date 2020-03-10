@@ -6,8 +6,6 @@
 
 typedef struct rb_root RCURedBlackTree;
 
-RCURedBlackTree *allocateRCURedBlackTree(void);
-
 void insert(RCURedBlackTree *root, unsigned int id, void *data);
 
 void *search(RCURedBlackTree *root, unsigned int id);

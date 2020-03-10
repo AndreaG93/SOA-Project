@@ -1,19 +1,20 @@
-#include "RCURedBlackTree.h"
-#include "ModuleInformations.h"
-#include "KernelLogManagement.h"
-#include "TMSDeviceDriver.h"
-
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/cdev.h>
 #include <linux/uaccess.h>
 #include <linux/kobject.h>
-#include <linux/sysfs.h>.
+#include <linux/sysfs.h>
+
+#include "RCURedBlackTree.h"
+#include "ModuleMetadata.h"
+#include "TMSDeviceDriver.h"
+#include "WaitFreeQueue.h"
+#include "KObjectManagement.h"
 
 static int majorNumber;
 static RCURedBlackTree *RCUTree;
-static kobject *kObjectParent;
+static struct kobject *kObjectParent;
 
 static ssize_t var_show(struct kobject *kobj, struct attribute *attr, char *buf) {
 
@@ -111,7 +112,7 @@ struct sysfs_ops *allocateAndInitializeSysFileSystemOperation(void) {
 
     output = kmalloc(sizeof(struct sysfs_ops), GFP_KERNEL);
     if (output == NULL)
-        printWarningMessageToKernelLog("'struct sysfs_ops' allocation failed!");
+        printk("'%s': 'struct sysfs_ops' allocation failed!\n", MODULE_NAME);
     else {
         output->show = var_show;
         output->store = var_store;
@@ -123,30 +124,29 @@ struct sysfs_ops *allocateAndInitializeSysFileSystemOperation(void) {
 void createAndInitializeNewWaitFreeQueue(unsigned long id) {
 
     WaitFreeQueue *waitFreeQueue;
-    struct kObject *kObject;
+    struct kobject *kObject;
     struct kobj_type *kType;
-    struct attribute_group **attributesGroups;
+    const struct attribute_group *attributesGroups;
     struct sysfs_ops *sysFSOperations;
 
     kObject = kobject_create_and_add("0", kObjectParent);
-    if (currentKObject == NULL) {
+    if (kObject == NULL) {
 
         printk("'%s': 'kobject_create_and_add' failed!\n", MODULE_NAME);
         return;
 
     } else {
 
-        ktype = kmalloc(sizeof(struct kobj_type), GFP_KERNEL);
-        if (ktype == NULL) {
+        kType = kmalloc(sizeof(struct kobj_type), GFP_KERNEL);
+        if (kType == NULL) {
 
-            printWarningMessageToKernelLog("'struct kobj_type' allocation failed!");
+            printk("'%s': 'struct kobj_type' allocation failed!\n", MODULE_NAME);
             goto FAILURE_FREEING_K_OBJECT;
 
         } else {
 
-            attribute_group = &allocateKObjectAttributeGroup(2, S_IWUSR | S_IRWXG, "max_message_size",
-                                                             "max_storage_size");
-            if (attribute_group == NULL) {
+            attributesGroups = allocateAttributeGroup(S_IWUSR | S_IRWXG, 2, "max_message_size", "max_storage_size");
+            if (attributesGroups == NULL) {
 
                 printk("'%s': 'allocateKObjectAttributeGroup' failed!\n", MODULE_NAME);
 
@@ -154,29 +154,31 @@ void createAndInitializeNewWaitFreeQueue(unsigned long id) {
             }
 
             sysFSOperations = allocateAndInitializeSysFileSystemOperation();
-            if (attribute_group == NULL) {
+            if (sysFSOperations == NULL) {
 
                 printk("'%s': 'allocateAndInitializeSysFileSystemOperation' failed!\n", MODULE_NAME);
 
-                freeAttributeGroup(attribute_group[0], 2);
+                freeAttributeGroup(attributesGroups, 2);
                 goto FAILURE_FREEING_K_OBJECT;
             }
 
-            ktype->default_groups = attribute_group;
-            ktype->sysfs_ops = sysFSOperations;
+            kType->default_groups = &attributesGroups;
+            kType->sysfs_ops = sysFSOperations;
+
+            kObject->ktype = kType;
 
             waitFreeQueue = allocateAndInitializeWaitFreeQueue(5, 5, kObject);
 
-            insert(RCUTree, id, waitFreeQueue)
+            insert(RCUTree, id, waitFreeQueue);
 
-            createAttributeGroupSysFiles();
+            createAttributeGroupSysFiles(kObject, 2);
         }
     }
 
     FAILURE_FREEING_K_OBJECT:
 
     kobject_put(kObject);
-    kfree(kObject)
+    kfree(kObject);
 }
 
 
@@ -207,7 +209,7 @@ void unregisterTMSDeviceDriver(void) {
     //cdev_del(charDeviceFile);
 
     unregister_chrdev(majorNumber, DEVICE_DRIVER_NAME);
-    printMessageToKernelLog("char device is been successfully unregistered!\n")
+    printk("'%s': char device is been successfully unregistered!!\n", MODULE_NAME);
 
     kobject_put(kObjectParent);
 }

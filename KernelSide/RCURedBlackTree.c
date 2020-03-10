@@ -14,10 +14,6 @@ typedef struct {
 
 } NodeContent __attribute__((aligned(sizeof(long))));
 
-RCURedBlackTree *allocateRCURedBlackTree(void) {
-    return &RB_ROOT;
-}
-
 RCURedBlackTree* cloneRCURedBlackTree(void) {
     return NULL;
 }
