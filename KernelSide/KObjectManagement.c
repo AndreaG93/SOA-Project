@@ -1,7 +1,8 @@
-#include "KObjectManagement.h"
-#include "./KernelLogManagement.h"
 #include <linux/kobject.h>
 #include <linux/sysfs.h>.
+
+#include "ModuleInformations.h"
+#include "KObjectManagement.h"
 
 void freeKObject(struct kobject *input) {
 
@@ -29,13 +30,13 @@ const struct attribute_group *allocateAttributeGroup(unsigned int attributeGroup
 
     output = kmalloc(sizeof(const struct attribute_group), GFP_KERNEL);
     if (output == NULL)
-        printWarningMessageToKernelLog("'struct attribute_group' allocation failed!");
+        printk("'%s': 'const struct attribute_group' allocation failed!\n", MODULE_NAME);
     else {
 
         attributeList = kmalloc(sizeof(struct attribute *) * groupSize, GFP_KERNEL);
         if (attributeList == NULL) {
 
-            printWarningMessageToKernelLog("'struct attribute *' allocation failed!");
+            printk("'%s': 'struct attribute *' allocation failed!\n", MODULE_NAME);
             kfree(output);
             return NULL;
 
@@ -50,7 +51,7 @@ const struct attribute_group *allocateAttributeGroup(unsigned int attributeGroup
                 attribute = kmalloc(sizeof(struct attribute), GFP_KERNEL);
                 if (attribute == NULL) {
 
-                    printWarningMessageToKernelLog("'struct attribute' allocation failed!");
+                    printk("'%s': 'struct attribute' allocation failed!\n", MODULE_NAME);
                     for (index--; index >= 0; index--)
                         kfree(*(attributeList + index));
 

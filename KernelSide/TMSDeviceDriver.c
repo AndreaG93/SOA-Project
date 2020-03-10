@@ -131,7 +131,7 @@ void createAndInitializeNewWaitFreeQueue(unsigned long id) {
     kObject = kobject_create_and_add("0", kObjectParent);
     if (currentKObject == NULL) {
 
-        printWarningMessageToKernelLog("'kobject_create_and_add' failed!");
+        printk("'%s': 'kobject_create_and_add' failed!\n", MODULE_NAME);
         return;
 
     } else {
@@ -148,7 +148,7 @@ void createAndInitializeNewWaitFreeQueue(unsigned long id) {
                                                              "max_storage_size");
             if (attribute_group == NULL) {
 
-                printWarningMessageToKernelLog("'allocateKObjectAttributeGroup' failed!");
+                printk("'%s': 'allocateKObjectAttributeGroup' failed!\n", MODULE_NAME);
 
                 goto FAILURE_FREEING_K_OBJECT;
             }
@@ -156,7 +156,7 @@ void createAndInitializeNewWaitFreeQueue(unsigned long id) {
             sysFSOperations = allocateAndInitializeSysFileSystemOperation();
             if (attribute_group == NULL) {
 
-                printWarningMessageToKernelLog("'allocateSysFileSystemOperation' failed!");
+                printk("'%s': 'allocateAndInitializeSysFileSystemOperation' failed!\n", MODULE_NAME);
 
                 freeAttributeGroup(attribute_group[0], 2);
                 goto FAILURE_FREEING_K_OBJECT;
@@ -184,7 +184,7 @@ int registerTMSDeviceDriver(void) {
 
     majorNumber = register_chrdev(0, DEVICE_DRIVER_NAME, &TimedMsgServiceOperation);
     if (majorNumber < 0) {
-        printWarningMessageToKernelLog("char device registration failed! ");
+        printk("'%s': char device registration failed!\n", MODULE_NAME);
         return FAILURE;
     } else {
         printk("'%s' char device is been successfully registered with major number %d!\n", MODULE_NAME, majorNumber);

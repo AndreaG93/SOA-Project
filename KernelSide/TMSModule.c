@@ -4,8 +4,8 @@
 #include <linux/device.h>
 
 #include "ModuleInformations.h"
-#include "./TMSModule.h"
-#include "./TMSDeviceDriver.h"
+#include "TMSModule.h"
+#include "TMSDeviceDriver.h"
 
 static struct class *TMSClass = NULL;
 

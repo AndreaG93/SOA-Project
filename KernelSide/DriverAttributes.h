@@ -1,8 +1,0 @@
-//
-// Created by andrea on 09/03/20.
-//
-
-#ifndef SOA_PROJECT_DRIVERATTRIBUTES_H
-#define SOA_PROJECT_DRIVERATTRIBUTES_H
-
-#endif //SOA_PROJECT_DRIVERATTRIBUTES_H
