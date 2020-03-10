@@ -2,8 +2,6 @@
 
 #include <linux/module.h>
 
-
-
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Andrea Graziani <andrea.graziani93@outlook.it>");
 MODULE_VERSION("1.0a");

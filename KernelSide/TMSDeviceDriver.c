@@ -16,9 +16,34 @@ static int majorNumber;
 static RCURedBlackTree *RCUTree;
 static struct kobject *kObjectParent;
 
+char *convertIntToString(int arg) {
+
+    int n = snprintf(NULL, 0, "%d", arg);
+    char *buf = kmalloc(n + 1, sizeof(char));
+    snprintf(buf, n + 1, "%d", arg);
+
+    return buf;
+}
+
+long stringToLong(char *arg) {
+
+    long output;
+
+    kstrtol(arg, 10, &output);
+
+    return output;
+}
+
+
 static ssize_t var_show(struct kobject *kobj, struct attribute *attr, char *buf) {
 
-    WaitFreeQueue *waitFreeQueue = search(RCUTree, 0);
+    unsigned long waitFreeQueueIndex;
+    WaitFreeQueue *waitFreeQueue;
+
+    waitFreeQueueIndex = stringToLong(kobj->name);
+    waitFreeQueue = search(RCUTree, waitFreeQueueIndex);
+
+    printk("'%s': 'var_show' function is been called managing 'WaitFreeQueue' with index %d!\n", DEVICE_DRIVER_NAME, waitFreeQueueIndex);
 
     if (strcmp(attr->name, "max_message_size") == 0)
         return sprintf(buf, "%d\n", waitFreeQueue->maxMessageSize);
@@ -121,6 +146,8 @@ struct sysfs_ops *allocateAndInitializeSysFileSystemOperation(void) {
     return output;
 }
 
+
+
 void createAndInitializeNewWaitFreeQueue(unsigned long id) {
 
     WaitFreeQueue *waitFreeQueue;
@@ -128,8 +155,12 @@ void createAndInitializeNewWaitFreeQueue(unsigned long id) {
     struct kobj_type *kType;
     const struct attribute_group *attributesGroups;
     struct sysfs_ops *sysFSOperations;
+    char *kObjectName;
 
-    kObject = kobject_create_and_add("0", kObjectParent);
+    kObjectName = convertIntToString(id);
+    printk("'%s': creating 'WaitFreeQueue' %s!\n", MODULE_NAME, kObjectName);
+
+    kObject = kobject_create_and_add(kObjectName, kObjectParent);
     if (kObject == NULL) {
 
         printk("'%s': 'kobject_create_and_add' failed!\n", MODULE_NAME);
@@ -144,6 +175,7 @@ void createAndInitializeNewWaitFreeQueue(unsigned long id) {
             goto FAILURE_FREEING_K_OBJECT;
 
         } else {
+
 
             attributesGroups = allocateAttributeGroup(S_IWUSR | S_IRWXG, 2, "max_message_size", "max_storage_size");
             if (attributesGroups == NULL) {
@@ -197,6 +229,7 @@ int registerTMSDeviceDriver(void) {
         kObjectParent = kobject_create_and_add("TSM", kernel_kobj);
 
         createAndInitializeNewWaitFreeQueue(0);
+        createAndInitializeNewWaitFreeQueue(1);
 
         return SUCCESS;
     }
