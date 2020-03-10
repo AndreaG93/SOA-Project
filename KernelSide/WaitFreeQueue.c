@@ -1,9 +1,7 @@
 #include "WaitFreeQueue.h"
+#include <linux/kobject.h>
 
-
-
-
-WaitFreeQueue* allocateAndInitializeWaitFreeQueue(void) {
+WaitFreeQueue* allocateAndInitializeWaitFreeQueue(unsigned long maxMessageSize, unsigned long maxStorageSize, struct kobject *kObject); {
 
     WaitFreeQueue* output = kmalloc(sizeof(WaitFreeQueue), GFP_KERNEL);
     if (output == NULL) {
@@ -13,9 +11,9 @@ WaitFreeQueue* allocateAndInitializeWaitFreeQueue(void) {
 
     } else {
 
-        output->maxMessageSize = 5;
-        output->maxStorageSize = 5;
-
+        output->maxMessageSize = maxStorageSize;
+        output->maxStorageSize = maxStorageSize;
+        output->kObject = kObject;
 
         return output;
     }

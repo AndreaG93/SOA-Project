@@ -1,4 +1,5 @@
 #pragma once
+#include <linux/kobject.h>
 
 typedef struct {
 
@@ -6,11 +7,10 @@ typedef struct {
     unsigned int maxStorageSize;
 
     struct kobject *kObject;
-    struct kobj_attribute *kObjectAttributes;
 
 } WaitFreeQueue;
 
-WaitFreeQueue* allocateAndInitializeWaitFreeQueue(void);
+WaitFreeQueue* allocateAndInitializeWaitFreeQueue(unsigned long maxMessageSize, unsigned long maxStorageSize, struct kobject *kObject);
 
 
 
