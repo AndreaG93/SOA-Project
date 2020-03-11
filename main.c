@@ -16,23 +16,7 @@ inline unsigned long getIdentifierFromStatus(unsigned long input) {
     return (input >> 1);
 }
 
-#define GetS(data, index, size) (((data) & GETMASK((index), (size))) >> (index))
 
-void copyBitsStartingFromSecondBit(unsigned long *dest, unsigned long source) {
-    *dest = (*dest & 1) | ((source << 1UL) & ~1UL);
-}
-
-void setBit(unsigned long *input, unsigned int bitPosition) {
-    *input = *input | (1UL << bitPosition);
-}
-
-void clearBit(unsigned long *input, unsigned int bitPosition) {
-    *input = *input & ~(1UL << bitPosition);
-}
-
-unsigned long getBit(unsigned long input, unsigned int bitPosition) {
-    return (input >> bitPosition) & 1;
-}
 
 
 

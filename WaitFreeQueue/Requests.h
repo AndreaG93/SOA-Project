@@ -1,22 +1,18 @@
 #pragma once
 
-#include "../Hardware/MemoryAlignment.h"
-
 typedef unsigned long RequestState;
 
 typedef struct {
     void *data;
-    RequestState state;
+    unsigned int state;
+    unsigned long id;
 } EnqueueRequest;
 
 typedef struct {
     unsigned long identifier;
-    RequestState state;
+    unsigned int state;
+    unsigned long id;
 } DequeueRequest;
-
-EnqueueRequest* allocateAndInitializeEnqueueRequest();
-
-DequeueRequest* allocateAndInitializeDequeueRequest();
 
 inline unsigned long getPendingBitFlagFromRequestState(RequestState input);
 

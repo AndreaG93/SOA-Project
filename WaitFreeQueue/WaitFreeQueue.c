@@ -4,20 +4,19 @@
 
 #include <stdbool.h>
 #include <stddef.h>
-#include <sys/user.h>
-#include <malloc.h>
+#include <stdlib.h>
 #include "WaitFreeQueue.h"
-#include "../Hardware/SynchronizationPrimitives.h"
-#include "../Hardware/MemoryAlignment.h"
+#include "../KernelSide/BasicOperations/SynchronizationPrimitives.h"
+#include "../KernelSide/BasicOperations/BasicDefines.h"
 
-
-#define FAST_PATH_MAX_STEPS 10
+#define FAST_PATH_MAX_ATTEMPTS 10
 #define N WAIT_FREE_QUEUE_NODE_SIZE
-#define SUCCESS 0
 
-WaitFreeQueueNode *_allocateAndInitializeWaitFreeQueueNode(unsigned long identifier) {
+WaitFreeQueueNode *allocateAndInitializeWaitFreeQueueNode(unsigned long identifier) {
 
-    WaitFreeQueueNode *output = NULL;//allocateAlignedMemoryArea(PAGE_SIZE, sizeof(WaitFreeQueueNode));
+    WaitFreeQueueNode *output = malloc(sizeof(WaitFreeQueueNode));
+    if (output == NULL)
+        exit(EXIT_FAILURE);
 
     output->identifier = identifier;
     output->next = NULL;
@@ -34,22 +33,21 @@ WaitFreeQueueNode *_allocateAndInitializeWaitFreeQueueNode(unsigned long identif
     return output;
 }
 
-static DataCell *_findDataCell(WaitFreeQueueNode **validNode, unsigned long targetCellIdentifier) {
+DataCell *findDataCell(WaitFreeQueueNode **validNode, unsigned long targetCellIdentifier) {
 
     unsigned long currentIdentifier;
 
     WaitFreeQueueNode *currentNode = *validNode;
     WaitFreeQueueNode *nextNode = NULL;
 
-    for (currentIdentifier = currentNode->identifier;
-         currentIdentifier < targetCellIdentifier / N; currentIdentifier++) {
+    for (currentIdentifier = currentNode->identifier; currentIdentifier < targetCellIdentifier / N; currentIdentifier++) {
 
         nextNode = (WaitFreeQueueNode *) currentNode->next;
 
         if (nextNode == NULL) {
 
-            WaitFreeQueueNode *newNode = _allocateAndInitializeWaitFreeQueueNode(currentIdentifier + 1);
-            if (!CAS(&currentNode->next, NULL, newNode))
+            WaitFreeQueueNode *newNode = allocateAndInitializeWaitFreeQueueNode(currentIdentifier + 1);
+            if (COMPARE_AND_SWAP(&currentNode->next, NULL, newNode) == FAILURE)
                 free(newNode);
 
             nextNode = (WaitFreeQueueNode *) currentNode->next;
@@ -64,42 +62,66 @@ static DataCell *_findDataCell(WaitFreeQueueNode **validNode, unsigned long targ
 
 WaitFreeQueue *allocateAndInitializeWaitFreeQueue() {
 
-    WaitFreeQueue *output = NULL;//allocateAlignedMemoryArea(PAGE_SIZE, sizeof(WaitFreeQueue));
+    WaitFreeQueue *output = malloc(sizeof(WaitFreeQueue));
+    if (output == NULL)
+        exit(EXIT_FAILURE);
+
     output->headIndex = 0;
     output->tailIndex = 0;
-    output->nodeList = _allocateAndInitializeWaitFreeQueueNode(0);
+    output->maxStorageSize = 10;
+    output->maxMessageSize = 15;
+
+    output->nodeList = allocateAndInitializeWaitFreeQueueNode(0);
 
     return output;
 }
 
-bool _isEnqueueFastSuccessful(WaitFreeQueue *waitFreeQueue, ThreadLocalState *threadLocalState, void *data) {
+int fastEnqueue(WaitFreeQueue *waitFreeQueue, ThreadLocalState *threadLocalState, void *data) {
 
-    unsigned long targetDataCellIndex = FAA(&waitFreeQueue->tailIndex, 1);
-    DataCell *targetDataCell = _findDataCell(&threadLocalState->tailNode, targetDataCellIndex);
+    unsigned long targetDataCellIndex = FETCH_AND_ADD(&waitFreeQueue->tailIndex, 1);
+    DataCell *targetDataCell = findDataCell(&threadLocalState->tailNode, targetDataCellIndex);
 
-    if (CAS(&targetDataCell->data, NULL, data))
-        return true;
+    if (COMPARE_AND_SWAP(&(targetDataCell->data), NULL, data) == SUCCESS)
+        return SUCCESS;
     else {
         //*cid := i;
-        return false;
+        return FAILURE;
     }
 }
 
-void _enqueueSlow (WaitFreeQueue *waitFreeQueue, ThreadLocalState *threadLocalState, void *data , int cell_id ) {
+void slowEnqueue(WaitFreeQueue *waitFreeQueue, ThreadLocalState *threadLocalState, void *data , int targetCellId) {
+
+    unsigned long targetDataCellIndex;
+    DataCell *targetDataCell;
+
+    EnqueueRequest* threadEnqueueRequest = &threadLocalState->Enqueue.enqueueRequest;
+
+    threadEnqueueRequest->data = data;
+    threadEnqueueRequest->state = PENDING_REQUEST;
+    threadEnqueueRequest->id = targetCellId;
+
+    WaitFreeQueueNode* tempTail = threadLocalState->tailNode;
+    do {
+
+        targetDataCellIndex = FETCH_AND_ADD(&waitFreeQueue->tailIndex, 1);
+        targetDataCell = findDataCell(&tempTail, targetDataCellIndex);
+
+        if (COMPARE_AND_SWAP(&targetDataCell->enqueueRequest, NULL, threadEnqueueRequest) && targetDataCell->data == NULL) {
+
+            if (COMPARE_AND_SWAP(&threadEnqueueRequest->id, &targetCellId, -targetDataCellIndex) == SUCCESS)
+                targetCellId = -targetDataCellIndex;
+
+            break;
+        }
+
+    } while (threadEnqueueRequest->state == PENDING_REQUEST);
+
+    targetCellId = -(threadEnqueueRequest->id);
+    targetDataCell = findDataCell(&tempTail, targetDataCellIndex);
+
 
     /*
 
-// publish enqueue request
-    r := &h->enq.req;
-    r - > val := v;
-    r - > state := (1, cell_id);
-// use a local tail pointer to traverse because
-// line 87 may need to find an earlier cell .
-    tmp_tail := h->tail;
-    do {
-// obtain new cell index and locate candidate cell
-        i := FAA (&q->T, 1);
-        c := find_cell(&tmp_tail, i);
 // Dijkstra ’s protocol
         if (CAS (&c->enq, ?e, r) and
         c.val = ?) {
@@ -119,16 +141,18 @@ void _enqueueSlow (WaitFreeQueue *waitFreeQueue, ThreadLocalState *threadLocalSt
 
 void enqueue(WaitFreeQueue *waitFreeQueue, ThreadLocalState *threadLocalState, void *data) {
 
-    for (unsigned int currentStep = 0; currentStep < FAST_PATH_MAX_STEPS; currentStep++)
-        if (_isEnqueueFastSuccessful(waitFreeQueue, threadLocalState, data) == true)
+    for (unsigned int currentAttempt = 0; currentAttempt < FAST_PATH_MAX_ATTEMPTS; currentAttempt++)
+        if (fastEnqueue(waitFreeQueue, threadLocalState, data) == SUCCESS)
             return;
 
-    _enqueueSlow(waitFreeQueue, threadLocalState, data, 0);
+    slowEnqueue(waitFreeQueue, threadLocalState, data, 0);
 }
 
 ThreadLocalState* allocateAndInitializeThreadLocalState(WaitFreeQueue* waitFreeQueue) {
 
-    ThreadLocalState* output = NULL;//allocateAlignedMemoryArea(PAGE_SIZE, sizeof(ThreadLocalState));
+    ThreadLocalState* output = malloc(sizeof(ThreadLocalState));
+    if (output == NULL)
+        exit(EXIT_FAILURE);
 
     output->headNode = waitFreeQueue->nodeList;
     output->tailNode = waitFreeQueue->nodeList;
