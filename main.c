@@ -3,18 +3,11 @@
 //
 
 #include <stdio.h>
-#include "UserSide/FileOperationsTests.h"
+#include <stdlib.h>
+#include <string.h>
+#include "WaitFreeQueue/LockFreeQueue.h"
 
-#define REQUEST_STATUS_PENDING_BIT 1
-
-
-inline unsigned long getPendingFromStatus(unsigned long input) {
-    return (input & 1);
-}
-
-inline unsigned long getIdentifierFromStatus(unsigned long input) {
-    return (input >> 1);
-}
+// alternative: union with  unsigned __int128
 
 
 
@@ -22,19 +15,19 @@ inline unsigned long getIdentifierFromStatus(unsigned long input) {
 
 int main() {
 
-    readTest();
-
     /*
-    unsigned long dd = 4;
+    const char* ff = "Andrea";
+    char *string = malloc(sizeof(char) * 6);
+    memcpy(string, ff, 6);
 
-    setBit(&dd, 0);
+    fprintf(stderr, "%s", string);
 
+    LockFreeQueue* lockFreeQueue = allocateAndInitializeLockFreeQueue(10, 100);
 
-    fprintf(stderr, "%lu\n", getBit(dd, 0));
-    fprintf(stderr, "%lu\n", getBit(dd, 1));
-    fprintf(stderr, "%lu\n", getBit(dd, 2));
-    fprintf(stderr, "%lu\n", getBit(dd, 3));
-    fprintf(stderr, "%lu\n", getBit(dd, 4));
+    enqueue(lockFreeQueue, string);
+
+    char *output = dequeue(lockFreeQueue);
+    fprintf(stderr, "%s", output);
 */
     return 0;
 }

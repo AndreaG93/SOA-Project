@@ -4,4 +4,4 @@ project(SOA-Project)
 LINK_LIBRARIES("pthread")
 set(CMAKE_C_STANDARD 11)
 
-add_executable(SOA-Project WaitFreeQueue/WaitFreeQueue.c WaitFreeQueue/WaitFreeQueue.h KernelSide/BasicOperations/SynchronizationPrimitives.h Hardware/MemoryAlignment.h Hardware/MemoryAlignment.c WaitFreeQueue/DataCell.h main.c WaitFreeQueue/Requests.c WaitFreeQueue/Requests.h UserSide/FileOperationsTests.c UserSide/FileOperationsTests.h ./KernelSide/BasicOperations/BitManipulation.h)
+add_executable(SOA-Project main.c WaitFreeQueue/LockFreeQueue.c WaitFreeQueue/LockFreeQueue.h WaitFreeQueue/ThreadsPool.c WaitFreeQueue/ThreadsPool.h)

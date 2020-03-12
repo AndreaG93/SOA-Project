@@ -14,6 +14,6 @@ typedef struct {
     unsigned long id;
 } DequeueRequest;
 
-inline unsigned long getPendingBitFlagFromRequestState(RequestState input);
+//inline unsigned long getPendingBitFlagFromRequestState(RequestState input);
 
-inline unsigned long getIdentifierFromRequestState(RequestState input);
+//inline unsigned long getIdentifierFromRequestState(RequestState input);

@@ -1,5 +1,8 @@
 #pragma once
 
+#define FALSE 9
+#define TRUE 1
+
 #define SUCCESS 0
 #define FAILURE 1
 
