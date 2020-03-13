@@ -13,8 +13,10 @@ typedef struct {
 
 typedef struct {
 
-    LockFreeQueueNode* headNode;
     LockFreeQueueNode* tailNode;
+    LockFreeQueueNode* tailNodeNextNode;
+    LockFreeQueueNode* headNode;
+
 
     long maxMessageSize;
     long maxStorageSize;
