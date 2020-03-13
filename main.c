@@ -32,6 +32,7 @@ int _CAS2(DCASOperand *ptr, void *cmp1, void *cmp2, void *val1, void *val2) {
 
 int main() {
 
+
     void *input = "Luca";
     void *input2 = "DD";
 
@@ -45,9 +46,10 @@ int main() {
 
     _CAS2(&operand, lo, hi, "Andrea", "Graziani");
 
-    fprintf(stderr, "%s, %s", operand.lo, operand.hi);
+    fprintf(stderr, "%s, %s\n", operand.lo, operand.hi);
+    fprintf(stderr, "%s, %s\n", input, input2);
+     /*
 
-    /*
     const char* ff = "Andrea";
     char *string = malloc(sizeof(char) * 6);
     memcpy(string, ff, 6);

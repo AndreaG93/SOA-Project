@@ -28,20 +28,18 @@ typedef struct {
 
 
 
-int CAS2(volatile DCASOperand sourceOperand, void *lowerCompare, void *upperCompare, void *newLowerValue, void *newUpperValue) {
+int CAS2(DCASOperand *ptr, void *cmp1, void *cmp2, void *val1, void *val2) {
     char success;
 
-    __asm__ __volatile__ (
+    __asm__ __volatile__(
     "lock cmpxchg16b %1\n"
     "setz %0"
-    : "=q" (success), "+m" (sourceOperand), "+a" (lowerCompare), "+d" (upperCompare)
-    : "b" (newLowerValue), "c" (newUpperValue)
+    : "=q" (success), "+m" (*ptr), "+a" (cmp1), "+d" (cmp2)
+    : "b" (val1), "c" (val2)
     : "cc" );
 
     return success;
 }
-
-  int ff = 6;
 
 LockFreeQueueNode *allocateAndInitializeLockFreeQueueNode(void *data) {
 
@@ -49,7 +47,7 @@ LockFreeQueueNode *allocateAndInitializeLockFreeQueueNode(void *data) {
     if (output != NULL) {
 
         output->data = data;
-        output->next = &ff;
+        output->next = NULL;
     }
 
     return output;
@@ -105,10 +103,10 @@ unsigned int enqueue(LockFreeQueue *queue, void *data) {
         nodeAfterTailNode = queue->tailNode->next;
         actualTailNode = queue->tailNode;
 
-        doubleCASOperand.lo = &ff;
+        doubleCASOperand.lo = nodeAfterTailNode;
         doubleCASOperand.hi = actualTailNode;
 
-        if (CAS2(doubleCASOperand, &ff, queue->tailNode, newNode, newNode))
+        if (CAS2(&doubleCASOperand, NULL, queue->tailNode, newNode, newNode))
             break;
     }
 

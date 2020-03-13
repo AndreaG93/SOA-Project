@@ -14,7 +14,6 @@ typedef struct {
 typedef struct {
 
     LockFreeQueueNode* tailNode;
-    LockFreeQueueNode* tailNodeNextNode;
     LockFreeQueueNode* headNode;
 
 
