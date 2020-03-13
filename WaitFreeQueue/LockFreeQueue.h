@@ -6,14 +6,15 @@
 
 typedef struct {
 
-    void *data;
     void *next;
+    void *data;
 
 } LockFreeQueueNode;
 
 typedef struct {
 
     LockFreeQueueNode* tailNode;
+    LockFreeQueueNode tailNode2;
     LockFreeQueueNode* headNode;
 
 
