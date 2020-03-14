@@ -6,7 +6,7 @@
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
 
-#include "RCURedBlackTree.h"
+#include "DataStructure/RCURedBlackTree.h"
 #include "ModuleMetadata.h"
 #include "TMSDeviceDriver.h"
 #include "WaitFreeQueue.h"
