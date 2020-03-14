@@ -33,21 +33,15 @@ void readUnlockRCU(RCUContainer *input, unsigned int threadEpoch) {
     __sync_sub_and_fetch(&input->standing[threadEpoch], 1);
 }
 
-void *writeLockRCU(RCUContainer *input) {
-
+void writeLockRCU(RCUContainer *input) {
     spin_lock(&input->writeLock)
-    return input->RCUProtectedData;
 }
 
-void *writeUnlockRCU(RCUContainer *input, void *newRCUProtectedData) {
+void writeUnlockRCU(RCUContainer *input, void *newRCUProtectedData) {
 
-    void *oldRCUProtectedData;
-    unsigned int gracePeriodEpoch;
+    unsigned int gracePeriodEpoch = input->epoch;
 
-    oldRCUProtectedData = input->RCUProtectedData;
     input->RCUProtectedData = newRCUProtectedData;
-
-    gracePeriodEpoch = input->epoch;
     input->epoch = (input->epoch + 1) % 2;
 
     asm volatile("mfence");
@@ -55,6 +49,4 @@ void *writeUnlockRCU(RCUContainer *input, void *newRCUProtectedData) {
     while (input->standing[gracePeriodEpoch] > 0);
 
     spin_unlock(&input->writeLock)
-
-    return oldRCUProtectedData;
 }

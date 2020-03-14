@@ -7,17 +7,18 @@
 #include <linux/sysfs.h>
 
 #include "BasicOperations/BasicDefines.h"
-#include "DataStructure/RCURedBlackTree.h"
+#include "DataStructure/RedBlackTree.h"
 #include "DataStructure/SemiLockFreeQueue.h
-#include "DataStructure/DataUnit.h"
+#include "DataStructure/RCUContainer.h
 #include "ModuleMetadata.h"
 #include "TMSDeviceDriver.h"
 #include "KObjectManagement.h"
 
+static *RCUContainer RCUProtectedRedBlackTree;
 static int majorNumber;
-static RCURedBlackTree *RCUTree;
 static struct kobject *kObjectParent;
 
+/*
 static ssize_t var_show(struct kobject *kobj, struct attribute *attr, char *buf) {
 
     unsigned long waitFreeQueueIndex;
@@ -46,15 +47,24 @@ static ssize_t var_store(struct kobject *kobj, struct attribute *attr, const cha
 
     return count;
 }
+*/
 
 static int TMS_open(struct inode *inode, struct file *file) {
 
     SemiLockFreeQueue *queue;
-    unsigned int queueID = iminor(inode);
+    unsigned int queueID
+    unsigned int threadEpoch
+
+    queueID = iminor(inode);
 
     printk("'%s': 'TMS_open' function is been called with minor number %d!\n", DEVICE_DRIVER_NAME, queueID);
 
-    queue = (SemiLockFreeQueue *) search(RCUTree, queueID)
+    threadEpoch = readLockRCUGettingCurrentEpoch(RCUProtectedRedBlackTree);
+
+    queue = (SemiLockFreeQueue *) redBlackTreeSearch(RCUProtectedRedBlackTree->RCUProtectedData, queueID);
+
+    readUnlockRCU(RCUProtectedRedBlackTree->RCUProtectedData, threadEpoch);
+
     if (queue == NULL) {
         queue = allocateAndInitializeSemiLockFreeQueue(MAX_MESSAGE_SIZE, MAX_STORAGE_SIZE, queueID);
         insert(RCUTree, queueID, queue);
@@ -78,7 +88,7 @@ static ssize_t TMS_read(struct file *file, char *userBuffer, size_t size, loff_t
 
         if (size < dataUnit)
 
-        copy_to_user(userBuffer, outputData, size);
+            copy_to_user(userBuffer, outputData, size);
         free(outputData);
 
     } else
@@ -227,31 +237,38 @@ int registerTMSDeviceDriver(void) {
 
     majorNumber = register_chrdev(0, DEVICE_DRIVER_NAME, &TimedMsgServiceOperation);
     if (majorNumber < 0) {
+
         printk("'%s': char device registration failed!\n", MODULE_NAME);
         return FAILURE;
+
     } else {
-        printk("'%s' char device is been successfully registered with major number %d!\n", MODULE_NAME, majorNumber);
 
-        RCUTree = kmalloc(sizeof(RCUTree), GFP_KERNEL);
-        RCUTree->rb_node = NULL;
+        RedBlackTree *redBlackTree = allocateRedBlackTree();
+        if (redBlackTree == NULL) {
 
-        //kObjectParent = kobject_create_and_add("TSM", kernel_kobj);
+            printk("'%s': 'redBlackTree' allocation failed!\n", MODULE_NAME);
+            return FAILURE;
+        }
 
-        //createAndInitializeNewWaitFreeQueue(0);
-        //createAndInitializeNewWaitFreeQueue(1);
+        RCUProtectedRedBlackTree = allocateRCUContainer(redBlackTree);
+        if (RCUProtectedRedBlackTree == NULL) {
 
+            printk("'%s': 'RCUProtectedRedBlackTree' allocation failed!\n", MODULE_NAME);
+            freeRedBlackTree(redBlackTree);
+            return FAILURE;
+        }
+
+        kObjectParent = kobject_create_and_add("TSM", kernel_kobj);
+
+        printk("'%s': char device is been successfully registered with major number %d!\n", MODULE_NAME, majorNumber);
         return SUCCESS;
     }
 }
 
 void unregisterTMSDeviceDriver(void) {
 
-    //"mknod /dev/TMS c 238 0"
-    // rm -rF /dev/TMS
-    //cdev_del(charDeviceFile);
-
     unregister_chrdev(majorNumber, DEVICE_DRIVER_NAME);
     printk("'%s': char device is been successfully unregistered!!\n", MODULE_NAME);
 
-    //kobject_put(kObjectParent);
+    kobject_put(kObjectParent);
 }
