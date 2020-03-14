@@ -3,16 +3,8 @@
 
 typedef struct {
 
-    void *next;
-    void *data;
-    unsigned long dataSize;
-
-} SemiLockFreeQueueNode;
-
-typedef struct {
-
-    SemiLockFreeQueueNode* tail;
-    SemiLockFreeQueueNode* head;
+    void* tail;
+    void* head;
 
     long maxMessageSize;
     long maxStorageSize;
@@ -22,10 +14,10 @@ typedef struct {
 
 } SemiLockFreeQueue;
 
-SemiLockFreeQueue *allocateAndInitializeSemiLockFreeQueue(long maxMessageSize, long maxStorageSize, struct kobject *kObject);
+SemiLockFreeQueue *allocateSemiLockFreeQueue(long maxMessageSize, long maxStorageSize, struct kobject *kObject);
 
-unsigned int enqueue(SemiLockFreeQueue *queue, void *data);
+int enqueue(SemiLockFreeQueue *input, void *data);
 
-void *dequeue(SemiLockFreeQueue *queue);
+void *dequeue(SemiLockFreeQueue *input);
 
-void freeSemiLockFreeQueue(SemiLockFreeQueue *queue);
+void freeSemiLockFreeQueue(SemiLockFreeQueue *input);

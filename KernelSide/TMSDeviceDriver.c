@@ -7,14 +7,14 @@
 #include <linux/sysfs.h>
 
 #include "BasicOperations/BasicDefines.h"
-#include "DataStructure/RedBlackTree.h"
+#include "DataStructure/RBTree.h"
 #include "DataStructure/SemiLockFreeQueue.h
-#include "DataStructure/RCUContainer.h
+#include "DataStructure/RCUSynchronizer.h"
 #include "ModuleMetadata.h"
 #include "TMSDeviceDriver.h"
 #include "KObjectManagement.h"
 
-static *RCUContainer RCUProtectedRedBlackTree;
+static *RCUSynchronizer RBTreeSynchronizer;
 static int majorNumber;
 static struct kobject *kObjectParent;
 
@@ -49,25 +49,53 @@ static ssize_t var_store(struct kobject *kobj, struct attribute *attr, const cha
 }
 */
 
+RCUSynchronizer* allocateSemiLockFreeQueueSynchronizer() {
+
+    // TODO KOBJECT
+    RCUSynchronizer* output;
+    SemiLockFreeQueue* semiLockFreeQueue;
+
+    semiLockFreeQueue = allocateSemiLockFreeQueue(MAX_MESSAGE_SIZE, MAX_STORAGE_SIZE, NULL);
+    if (semiLockFreeQueue == NULL)
+        return NULL;
+    else {
+
+        output = allocateRCUSynchronizer();
+        if (output == NULL) {
+
+            freeSemiLockFreeQueue(semiLockFreeQueue);
+            return NULL;
+
+        } else
+            output->RCUProtectedDataStructure = semiLockFreeQueue;
+    }
+
+    return output
+}
+
 static int TMS_open(struct inode *inode, struct file *file) {
 
-    SemiLockFreeQueue *queue;
-    unsigned int queueID
-    unsigned int threadEpoch
+    RCUSynchronizer *queueSynchronizer;
+    unsigned int queueSynchronizerID
+    unsigned int epoch
 
-    queueID = iminor(inode);
+    queueSynchronizerID = iminor(inode);
 
-    printk("'%s': 'TMS_open' function is been called with minor number %d!\n", DEVICE_DRIVER_NAME, queueID);
+    printk("'%s': 'TMS_open' function is been called with minor number %d!\n", DEVICE_DRIVER_NAME, queueSynchronizerID);
 
-    threadEpoch = readLockRCUGettingCurrentEpoch(RCUProtectedRedBlackTree);
+    epoch = readLockRCUGettingEpoch(RBTreeSynchronizer);
+    queueSynchronizer = (RCUSynchronizer *) searchRBTree(RBTreeSynchronizer->RCUProtectedDataStructure, queueSynchronizerID);
+    readUnlockRCU(RBTreeSynchronizer, epoch);
 
-    queue = (SemiLockFreeQueue *) redBlackTreeSearch(RCUProtectedRedBlackTree->RCUProtectedData, queueID);
+    if (queueSynchronizer == NULL) {
 
-    readUnlockRCU(RCUProtectedRedBlackTree->RCUProtectedData, threadEpoch);
+        writeLockRCU(RBTreeSynchronizer);
 
-    if (queue == NULL) {
-        queue = allocateAndInitializeSemiLockFreeQueue(MAX_MESSAGE_SIZE, MAX_STORAGE_SIZE, queueID);
-        insert(RCUTree, queueID, queue);
+        queueSynchronizer = allocateSemiLockFreeQueueSynchronizer();
+        insertRBTree(RBTreeSynchronizer.RCUProtectedDataStructure, queueID);
+        // TODO RCU...
+        writeUnlockRCU()
+
     }
 
     return 0;
@@ -111,15 +139,14 @@ static ssize_t TMS_write(struct file *file, const char *buffer, size_t size, lof
 
 static int TMS_release(struct inode *inode, struct file *file) {
 
-    printk(KERN_DEBUG
-    "'%s': 'TMS_release' function is been called!\n", DEVICE_DRIVER_NAME);
-
+    printk("'%s': 'TMS_release' function is been called!\n", DEVICE_DRIVER_NAME);
     return 0;
 }
 
 
 static int TMS_flush(struct file *file, fl_owner_t id) {
 
+    /*
     SemiLockFreeQueue *oldQueue;
     SemiLockFreeQueue *newQueue;
     unsigned int queueID = iminor(inode);
@@ -128,12 +155,12 @@ static int TMS_flush(struct file *file, fl_owner_t id) {
 
     oldQueue = (SemiLockFreeQueue *) search(RCUTree, queueID);
 
-    newQueue = allocateAndInitializeSemiLockFreeQueue(oldQueue->maxMessageSize, oldQueue->maxStorageSize,
-                                                      oldQueue->kObject);
+    newQueue = allocateAndInitializeSemiLockFreeQueue(oldQueue->maxMessageSize, oldQueue->maxStorageSize, oldQueue->kObject);
     atomicallySwap(RCUTree, queueID, newQueue);
 
     freeSemiLockFreeQueue(oldQueue);
 
+    */
     return 0;
 }
 
@@ -141,7 +168,7 @@ static long TMS_unlocked_ioctl(struct file *file, unsigned int x, unsigned long 
     return 1;
 }
 
-static struct file_operations TimedMsgServiceOperation = {
+static struct file_operations TMSOperation = {
         read: TMS_read,
         write: TMS_write,
         open: TMS_open,
@@ -150,7 +177,7 @@ static struct file_operations TimedMsgServiceOperation = {
         flush: TMS_flush
 };
 
-
+/*
 struct sysfs_ops *allocateAndInitializeSysFileSystemOperation(void) {
 
     struct sysfs_ops *output;
@@ -231,11 +258,11 @@ void createAndInitializeNewWaitFreeQueue(unsigned long id) {
     kobject_put(kObject);
     kfree(kObject);
 }
-
+*/
 
 int registerTMSDeviceDriver(void) {
 
-    majorNumber = register_chrdev(0, DEVICE_DRIVER_NAME, &TimedMsgServiceOperation);
+    majorNumber = register_chrdev(0, DEVICE_DRIVER_NAME, &TMSOperation);
     if (majorNumber < 0) {
 
         printk("'%s': char device registration failed!\n", MODULE_NAME);
@@ -243,18 +270,18 @@ int registerTMSDeviceDriver(void) {
 
     } else {
 
-        RedBlackTree *redBlackTree = allocateRedBlackTree();
-        if (redBlackTree == NULL) {
+        RBTree* rbTree = allocateRBTree(void);
+        if (rbTree == NULL) {
 
-            printk("'%s': 'redBlackTree' allocation failed!\n", MODULE_NAME);
+            printk("'%s': 'rbTree' allocation failed!\n", MODULE_NAME);
             return FAILURE;
         }
 
-        RCUProtectedRedBlackTree = allocateRCUContainer(redBlackTree);
-        if (RCUProtectedRedBlackTree == NULL) {
+        RBTreeSynchronizer = allocateRCUSynchronizer(rbTree);
+        if (RBTreeSynchronizer == NULL) {
 
-            printk("'%s': 'RCUProtectedRedBlackTree' allocation failed!\n", MODULE_NAME);
-            freeRedBlackTree(redBlackTree);
+            printk("'%s': 'RBTreeSynchronizer' allocation failed!\n", MODULE_NAME);
+            freeRedBlackTree(rbTree);
             return FAILURE;
         }
 

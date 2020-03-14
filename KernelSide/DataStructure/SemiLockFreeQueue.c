@@ -1,8 +1,17 @@
 #include "SemiLockFreeQueue.h"
+#include "../BasicOperations/BasicDefines.h"
 #include <linux/slab.h>
 #include <linux/kobject.h>
 
-SemiLockFreeQueueNode *allocateAndInitializeSemiLockFreeQueueNode(void *data) {
+typedef struct {
+
+    void *next;
+    void *data;
+    unsigned long dataSize;
+
+} SemiLockFreeQueueNode;
+
+SemiLockFreeQueueNode *allocateSemiLockFreeQueueNode(void *data) {
 
     SemiLockFreeQueueNode *output = kmalloc(sizeof(SemiLockFreeQueueNode), GFP_KERNEL);
     if (output != NULL) {
@@ -14,7 +23,7 @@ SemiLockFreeQueueNode *allocateAndInitializeSemiLockFreeQueueNode(void *data) {
     return output;
 }
 
-SemiLockFreeQueue *allocateAndInitializeSemiLockFreeQueue(long maxMessageSize, long maxStorageSize, struct kobject *kObject) {
+SemiLockFreeQueue *allocateSemiLockFreeQueue(long maxMessageSize, long maxStorageSize, struct kobject *kObject) {
 
     SemiLockFreeQueueNode *dummyNode;
     SemiLockFreeQueue *output;
@@ -22,7 +31,7 @@ SemiLockFreeQueue *allocateAndInitializeSemiLockFreeQueue(long maxMessageSize, l
     output = kmalloc(sizeof(SemiLockFreeQueue), GFP_KERNEL);
     if (output != NULL) {
 
-        dummyNode = allocateAndInitializeSemiLockFreeQueueNode(NULL);
+        dummyNode = allocateSemiLockFreeQueueNode(NULL);
         if (dummyNode != NULL) {
 
             output->head = dummyNode;
@@ -57,15 +66,15 @@ void freeSemiLockFreeQueue(SemiLockFreeQueue *queue) {
     free(queue);
 }
 
-unsigned int enqueue(SemiLockFreeQueue *queue, void *data) {
+int enqueue(SemiLockFreeQueue *queue, void *data) {
 
     SemiLockFreeQueueNode *actualTail;
-    SemiLockFreeQueueNode *newNode = allocateAndInitializeSemiLockFreeQueueNode(data);
+    SemiLockFreeQueueNode *newNode = allocateSemiLockFreeQueueNode(data);
 
     unsigned long currentUsedStorage = __sync_add_and_fetch(&queue->currentUsedStorage, 1);
     if (currentUsedStorage > queue->maxStorageSize) {
         __sync_sub_and_fetch(&queue->currentUsedStorage, 1);
-        return 1;
+        return FAILURE;
     }
 
     do {
@@ -76,7 +85,7 @@ unsigned int enqueue(SemiLockFreeQueue *queue, void *data) {
         }
     } while (1);
 
-    return 0;
+    return SUCCESS;
 }
 
 void *dequeue(SemiLockFreeQueue *queue) {
