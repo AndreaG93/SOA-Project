@@ -8,3 +8,7 @@
 
 #define NOT_PENDING_REQUEST 0
 #define PENDING_REQUEST 1
+
+#define MAX_MESSAGE_SIZE 50;
+#define MAX_STORAGE_SIZE 30;
+

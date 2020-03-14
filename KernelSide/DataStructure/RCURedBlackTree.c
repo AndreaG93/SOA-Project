@@ -3,7 +3,6 @@
 #include <linux/rbtree.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/rcupdate.h>
 
 typedef struct {
 
@@ -14,7 +13,7 @@ typedef struct {
 
 } NodeContent __attribute__((aligned(sizeof(long))));
 
-RCURedBlackTree* cloneRCURedBlackTree(void) {
+RCURedBlackTree *cloneRCURedBlackTree(void) {
     return NULL;
 }
 
@@ -60,8 +59,6 @@ void *search(RCURedBlackTree *root, unsigned int id) {
     void *output = NULL;
     struct rb_node *currentNode;
 
-    //rcu_read_lock();
-
     currentNode = root->rb_node;
 
     while (currentNode != NULL) {
@@ -79,7 +76,6 @@ void *search(RCURedBlackTree *root, unsigned int id) {
 
     }
 
-    //rcu_read_unlock()
     return output;
 }
 
@@ -94,4 +90,26 @@ void delete(RCURedBlackTree *root, unsigned int id) {
     */
 }
 
+void atomicallySwap(RCURedBlackTree *root, unsigned int id, void *newData) {
+
+    struct rb_node *currentNode;
+
+    currentNode = root->rb_node;
+
+    while (currentNode != NULL) {
+
+        NodeContent *currentNodeContent = container_of(currentNode, NodeContent, node);
+
+        if (id < currentNodeContent->id)
+            currentNode = currentNode->rb_left;
+        else if (id > currentNodeContent->id)
+            currentNode = currentNode->rb_right;
+        else {
+            void *oldData = currentNodeContent->data;
+            while (__sync_bool_compare_and_swap(&currentNodeContent->data, oldData, newData) != SUCCESS);
+            return;
+        }
+
+    }
+}
 

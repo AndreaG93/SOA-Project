@@ -11,3 +11,5 @@ void insert(RCURedBlackTree *root, unsigned int id, void *data);
 void *search(RCURedBlackTree *root, unsigned int id);
 
 void delete(RCURedBlackTree *root, unsigned int id);
+
+void atomicallySwap(RCURedBlackTree *root, unsigned int id, void *newData);

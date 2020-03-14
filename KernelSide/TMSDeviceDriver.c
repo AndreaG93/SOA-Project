@@ -6,34 +6,17 @@
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
 
+#include "BasicOperations/BasicDefines.h"
 #include "DataStructure/RCURedBlackTree.h"
+#include "DataStructure/SemiLockFreeQueue.h
+#include "DataStructure/DataUnit.h"
 #include "ModuleMetadata.h"
 #include "TMSDeviceDriver.h"
-#include "WaitFreeQueue.h"
 #include "KObjectManagement.h"
 
 static int majorNumber;
 static RCURedBlackTree *RCUTree;
 static struct kobject *kObjectParent;
-
-char *convertIntToString(int arg) {
-
-    int n = snprintf(NULL, 0, "%d", arg);
-    char *buf = kmalloc(n + 1, sizeof(char));
-    snprintf(buf, n + 1, "%d", arg);
-
-    return buf;
-}
-
-long stringToLong(char *arg) {
-
-    long output;
-
-    kstrtol(arg, 10, &output);
-
-    return output;
-}
-
 
 static ssize_t var_show(struct kobject *kobj, struct attribute *attr, char *buf) {
 
@@ -43,7 +26,8 @@ static ssize_t var_show(struct kobject *kobj, struct attribute *attr, char *buf)
     waitFreeQueueIndex = stringToLong(kobj->name);
     waitFreeQueue = search(RCUTree, waitFreeQueueIndex);
 
-    printk("'%s': 'var_show' function is been called managing 'WaitFreeQueue' with index %d!\n", DEVICE_DRIVER_NAME, waitFreeQueueIndex);
+    printk("'%s': 'var_show' function is been called managing 'WaitFreeQueue' with index %d!\n", DEVICE_DRIVER_NAME,
+           waitFreeQueueIndex);
 
     if (strcmp(attr->name, "max_message_size") == 0)
         return sprintf(buf, "%d\n", waitFreeQueue->maxMessageSize);
@@ -63,40 +47,55 @@ static ssize_t var_store(struct kobject *kobj, struct attribute *attr, const cha
     return count;
 }
 
-
 static int TMS_open(struct inode *inode, struct file *file) {
 
-    printk("'%s': 'TMS_open' function is been called!\n", DEVICE_DRIVER_NAME);
+    SemiLockFreeQueue *queue;
+    unsigned int queueID = iminor(inode);
 
-    //unsigned int mdsa = iminor(file->f_inode);
-    //unsigned int mdsa = iminor(inode);
+    printk("'%s': 'TMS_open' function is been called with minor number %d!\n", DEVICE_DRIVER_NAME, queueID);
 
-    printk(KERN_DEBUG
-    "'%s': 'TMS_open' function is been called on minor number %d   e %d!\n", DEVICE_DRIVER_NAME, iminor(inode), iminor(
-            file->f_inode));
-
+    queue = (SemiLockFreeQueue *) search(RCUTree, queueID)
+    if (queue == NULL) {
+        queue = allocateAndInitializeSemiLockFreeQueue(MAX_MESSAGE_SIZE, MAX_STORAGE_SIZE, queueID);
+        insert(RCUTree, queueID, queue);
+    }
 
     return 0;
 }
 
 static ssize_t TMS_read(struct file *file, char *userBuffer, size_t size, loff_t *offset) {
 
-    printk(KERN_DEBUG
-    "'%s': 'TMS_read' function is been called on device file (%d %d)!\n", DEVICE_DRIVER_NAME, imajor(
-            file->f_inode), iminor(file->f_inode));
+    DataUnit *dataUnit;
+    SemiLockFreeQueue *queue;
+    unsigned int queueID = iminor(inode);
 
-    unsigned long bytesNotCopied;
+    printk("'%s': 'TMS_read' function is been called with minor number %d!\n", DEVICE_DRIVER_NAME, queueID);
 
-    void *data = search(RCUTree, 0);
-    if (data != NULL) {
-        bytesNotCopied = copy_to_user(userBuffer, data, 6);
-    }
+    queue = (SemiLockFreeQueue *) search(RCUTree, queueID);
 
-    return 0;
+    dataUnit = dequeue(queue)
+    if (dataUnit != NULL) {
+
+        if (size < dataUnit)
+
+        copy_to_user(userBuffer, outputData, size);
+        free(outputData);
+
+    } else
+        return -ENOENT
 }
 
 static ssize_t TMS_write(struct file *file, const char *buffer, size_t size, loff_t *offset) {
-    return 1;
+
+    DataUnit *dataUnit;
+    SemiLockFreeQueue *queue;
+    unsigned int queueID = iminor(inode);
+
+    printk("'%s': 'TMS_write' function is been called with minor number %d!\n", DEVICE_DRIVER_NAME, queueID);
+
+    queue = (SemiLockFreeQueue *) search(RCUTree, queueID);
+
+
 }
 
 
@@ -111,8 +110,19 @@ static int TMS_release(struct inode *inode, struct file *file) {
 
 static int TMS_flush(struct file *file, fl_owner_t id) {
 
-    printk(KERN_DEBUG
-    "'%s': 'TMS_flush' function is been called!\n", DEVICE_DRIVER_NAME);
+    SemiLockFreeQueue *oldQueue;
+    SemiLockFreeQueue *newQueue;
+    unsigned int queueID = iminor(inode);
+
+    printk("'%s': 'TMS_open' function is been called with minor number %d!\n", DEVICE_DRIVER_NAME, queueID);
+
+    oldQueue = (SemiLockFreeQueue *) search(RCUTree, queueID);
+
+    newQueue = allocateAndInitializeSemiLockFreeQueue(oldQueue->maxMessageSize, oldQueue->maxStorageSize,
+                                                      oldQueue->kObject);
+    atomicallySwap(RCUTree, queueID, newQueue);
+
+    freeSemiLockFreeQueue(oldQueue);
 
     return 0;
 }
@@ -145,7 +155,6 @@ struct sysfs_ops *allocateAndInitializeSysFileSystemOperation(void) {
 
     return output;
 }
-
 
 
 void createAndInitializeNewWaitFreeQueue(unsigned long id) {
@@ -226,10 +235,10 @@ int registerTMSDeviceDriver(void) {
         RCUTree = kmalloc(sizeof(RCUTree), GFP_KERNEL);
         RCUTree->rb_node = NULL;
 
-        kObjectParent = kobject_create_and_add("TSM", kernel_kobj);
+        //kObjectParent = kobject_create_and_add("TSM", kernel_kobj);
 
-        createAndInitializeNewWaitFreeQueue(0);
-        createAndInitializeNewWaitFreeQueue(1);
+        //createAndInitializeNewWaitFreeQueue(0);
+        //createAndInitializeNewWaitFreeQueue(1);
 
         return SUCCESS;
     }
@@ -244,5 +253,5 @@ void unregisterTMSDeviceDriver(void) {
     unregister_chrdev(majorNumber, DEVICE_DRIVER_NAME);
     printk("'%s': char device is been successfully unregistered!!\n", MODULE_NAME);
 
-    kobject_put(kObjectParent);
+    //kobject_put(kObjectParent);
 }
