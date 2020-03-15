@@ -10,12 +10,14 @@
 #include "DataStructure/RBTree.h"
 #include "DataStructure/SemiLockFreeQueue.h
 #include "DataStructure/RCUSynchronizer.h"
-#include "./ModuleFunctions.h"
+#include "DataStructure/Message.h"
+#include "ModuleFunctions.h"
 #include "ModuleMetadata.h"
 #include "TMSDeviceDriver.h"
 #include "KObjectManagement.h"
 
-static *RCUSynchronizer RBTreeSynchronizer;
+static *
+RCUSynchronizer RBTreeSynchronizer;
 static int majorNumber;
 static struct kobject *kObjectParent;
 
@@ -50,30 +52,6 @@ static ssize_t var_store(struct kobject *kobj, struct attribute *attr, const cha
 }
 */
 
-RCUSynchronizer* allocateSemiLockFreeQueueSynchronizer() {
-
-    // TODO KOBJECT
-    RCUSynchronizer* output;
-    SemiLockFreeQueue* semiLockFreeQueue;
-
-    semiLockFreeQueue = allocateSemiLockFreeQueue(MAX_MESSAGE_SIZE, MAX_STORAGE_SIZE, NULL);
-    if (semiLockFreeQueue == NULL)
-        return NULL;
-    else {
-
-        output = allocateRCUSynchronizer();
-        if (output == NULL) {
-
-            freeSemiLockFreeQueue(semiLockFreeQueue);
-            return NULL;
-
-        } else
-            output->RCUProtectedDataStructure = semiLockFreeQueue;
-    }
-
-    return output
-}
-
 static int TMS_open(struct inode *inode, struct file *file) {
 
     RCUSynchronizer *queueSynchronizer;
@@ -90,9 +68,11 @@ static int TMS_open(struct inode *inode, struct file *file) {
         writeLockRCU(RBTreeSynchronizer);
 
         queueSynchronizer = getQueueRCUSynchronizer(RBTreeSynchronizer, queueID);
-        if (queueSynchronizer != NULL)
+        if (queueSynchronizer != NULL) {
+
+            writeUnlockRCU(RBTreeSynchronizer, RBTreeSynchronizer->RCUProtectedDataStructure);
             return SUCCESS;
-        else {
+        } else {
 
             RBTree *newRBTree;
             RBTree *oldRBTree;
@@ -104,7 +84,7 @@ static int TMS_open(struct inode *inode, struct file *file) {
 
             insertRBTree(newRBTree, queueID, queueSynchronizer);
 
-            writeUnlockRCU();
+            writeUnlockRCU(RBTreeSynchronizer, newRBTree);
 
             freeRBTree(oldRBTree);
         }
@@ -113,39 +93,67 @@ static int TMS_open(struct inode *inode, struct file *file) {
     return SUCCESS;
 }
 
-static ssize_t TMS_read(struct file *file, char *userBuffer, size_t size, loff_t *offset) {
+static ssize_t TMS_read(struct file *file, char *userBuffer, size_t userBufferSize, loff_t *offset) {
 
-    DataUnit *dataUnit;
+    Message *message;
     SemiLockFreeQueue *queue;
-    unsigned int queueID = iminor(inode);
+    RCUSynchronizer *queueSynchronizer;
+    unsigned long queueID;
+    unsigned long epoch;
+    unsigned char output;
+
+    queueID = iminor(inode);
 
     printk("'%s': 'TMS_read' function is been called with minor number %d!\n", DEVICE_DRIVER_NAME, queueID);
 
-    queue = (SemiLockFreeQueue *) search(RCUTree, queueID);
+    queueSynchronizer = getQueueRCUSynchronizer(RBTreeSynchronizer, queueID);
 
-    dataUnit = dequeue(queue)
-    if (dataUnit != NULL) {
+    epoch = readLockRCUGettingEpoch(queueSynchronizer);
 
-        if (size < dataUnit)
+    queue = (SemiLockFreeQueue *) queueSynchronizer->RCUProtectedDataStructure;
 
-            copy_to_user(userBuffer, outputData, size);
-        free(outputData);
+    message = dequeue(queue);
 
-    } else
-        return -ENOENT
+    output = copyMessageToUserBuffer(message, userBuffer, userBufferSize);
+
+    freeMessage(message);
+    readUnlockRCU(queueSynchronizer, epoch);
+
+    if (output == FAILURE)
+        return -FAILURE;
+
+    return SUCCESS;
 }
 
-static ssize_t TMS_write(struct file *file, const char *buffer, size_t size, loff_t *offset) {
+static ssize_t TMS_write(struct file *file, const char *userBuffer, size_t userBufferSize, loff_t *offset) {
 
-    DataUnit *dataUnit;
+    Message *message;
     SemiLockFreeQueue *queue;
-    unsigned int queueID = iminor(inode);
+    RCUSynchronizer *queueSynchronizer;
+    unsigned long queueID;
+    unsigned long epoch;
+
+    queueID = iminor(inode);
 
     printk("'%s': 'TMS_write' function is been called with minor number %d!\n", DEVICE_DRIVER_NAME, queueID);
 
-    queue = (SemiLockFreeQueue *) search(RCUTree, queueID);
+    queueSynchronizer = getQueueRCUSynchronizer(RBTreeSynchronizer, queueID);
 
+    epoch = readLockRCUGettingEpoch(queueSynchronizer);
 
+    queue = (SemiLockFreeQueue *) queueSynchronizer->RCUProtectedDataStructure;
+
+    if (userBufferSize > queue->maxMessageSize) {
+
+        readUnlockRCU(queueSynchronizer, epoch);
+        return -FAILURE;
+
+    } else {
+
+        message = allocateMessage(userBuffer, userBufferSize);
+        enqueue(queue, message);
+        readUnlockRCU(queueSynchronizer, epoch);
+    }
 }
 
 
@@ -158,21 +166,26 @@ static int TMS_release(struct inode *inode, struct file *file) {
 
 static int TMS_flush(struct file *file, fl_owner_t id) {
 
-    /*
     SemiLockFreeQueue *oldQueue;
     SemiLockFreeQueue *newQueue;
-    unsigned int queueID = iminor(inode);
+    RCUSynchronizer *queueSynchronizer;
+    unsigned long queueID;
 
-    printk("'%s': 'TMS_open' function is been called with minor number %d!\n", DEVICE_DRIVER_NAME, queueID);
+    queueID = iminor(inode);
 
-    oldQueue = (SemiLockFreeQueue *) search(RCUTree, queueID);
+    printk("'%s': 'TMS_flush' function is been called with minor number %d!\n", DEVICE_DRIVER_NAME, queueID);
 
-    newQueue = allocateAndInitializeSemiLockFreeQueue(oldQueue->maxMessageSize, oldQueue->maxStorageSize, oldQueue->kObject);
-    atomicallySwap(RCUTree, queueID, newQueue);
+    queueSynchronizer = getQueueRCUSynchronizer(RBTreeSynchronizer, queueID);
+
+    writeLockRCU(queueSynchronizer);
+
+    oldQueue = queueSynchronizer->RCUProtectedDataStructure;
+    newQueue = allocateSemiLockFreeQueue(oldQueue->maxMessageSize, oldQueue->maxStorageSize, oldQueue->kObject);
+
+    writeUnlockRCU(queueSynchronizer, newQueue);
 
     freeSemiLockFreeQueue(oldQueue);
 
-    */
     return 0;
 }
 
@@ -282,7 +295,8 @@ int registerTMSDeviceDriver(void) {
 
     } else {
 
-        RBTree* rbTree = allocateRBTree(void);
+        RBTree * rbTree = allocateRBTree(
+        void);
         if (rbTree == NULL) {
 
             printk("'%s': 'rbTree' allocation failed!\n", MODULE_NAME);
