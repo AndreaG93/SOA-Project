@@ -121,3 +121,19 @@ void freeRBTree(RBTree *input) {
 
     kfree(input);
 }
+
+void freeRBTreeContentIncluded(RBTree *input) {
+
+    struct rb_node *currentNode;
+    struct rb_node *nextNode;
+
+    for (currentNode = rb_first(input); currentNode; ) {
+
+        nextNode = rb_next(currentNode);
+        kfree(currentNode);
+        currentNode = nextNode;
+
+    }
+
+    kfree(input);
+}

@@ -20,4 +20,4 @@ unsigned char enqueue(SemiLockFreeQueue *input, void *data);
 
 void *dequeue(SemiLockFreeQueue *input);
 
-void freeSemiLockFreeQueue(SemiLockFreeQueue *input);
+void freeSemiLockFreeQueue(SemiLockFreeQueue *queue, void (*dataFreeFunction)(void *))
