@@ -8,6 +8,7 @@
 
 #include "Common/BasicDefines.h"
 #include "Common/ModuleMetadata.h"
+#include "Common/BasicOperations.h"
 
 #include "DataStructure/RBTree.h"
 #include "DataStructure/SemiLockFreeQueue.h"
@@ -22,36 +23,59 @@ static RCUSynchronizer* RBTreeSynchronizer;
 static int majorNumber;
 static struct kobject *kObjectParent;
 
-/*
-static ssize_t var_show(struct kobject *kobj, struct attribute *attr, char *buf) {
+static ssize_t TMS_show(struct kobject *kobj, struct attribute *attr, char *buf) {
 
-    unsigned long waitFreeQueueIndex;
-    WaitFreeQueue *waitFreeQueue;
+    SemiLockFreeQueue *queue;
+    RCUSynchronizer *queueSynchronizer;
+    ssize_t output;
+    int queueID;
+    unsigned int epoch;
 
-    waitFreeQueueIndex = stringToLong(kobj->name);
-    waitFreeQueue = search(RCUTree, waitFreeQueueIndex);
+    queueID = stringToLong(kobj->name);
 
-    printk("'%s': 'var_show' function is been called managing 'WaitFreeQueue' with index %d!\n", DEVICE_DRIVER_NAME,
-           waitFreeQueueIndex);
+    printk("'%s': 'TMS_show' function is been called managing 'SemiLockFreeQueue' with index %d!\n", MODULE_NAME, queueID);
+
+    queueSynchronizer = getQueueRCUSynchronizer(RBTreeSynchronizer, queueID);
+
+    epoch = readLockRCUGettingEpoch(queueSynchronizer);
+
+    queue = (SemiLockFreeQueue *) queueSynchronizer->RCUProtectedDataStructure;
 
     if (strcmp(attr->name, "max_message_size") == 0)
-        return sprintf(buf, "%d\n", waitFreeQueue->maxMessageSize);
+        output = sprintf(buf, "%ld\n", queue->maxMessageSize);
     else
-        return sprintf(buf, "%d\n", waitFreeQueue->maxStorageSize);
+        output = sprintf(buf, "%ld\n", queue->maxStorageSize);
+
+    readUnlockRCU(queueSynchronizer, epoch);
+
+    return output;
 }
 
-static ssize_t var_store(struct kobject *kobj, struct attribute *attr, const char *buf, size_t count) {
+static ssize_t TMS_store(struct kobject *kobj, struct attribute *attr, const char *buf, size_t count) {
 
-    WaitFreeQueue *waitFreeQueue = search(RCUTree, 0);
+    SemiLockFreeQueue *queue;
+    RCUSynchronizer *queueSynchronizer;
+    int queueID;
+
+    queueID = stringToLong(kobj->name);
+
+    printk("'%s': 'TMS_store' function is been called managing 'SemiLockFreeQueue' with index %d!\n", MODULE_NAME, queueID);
+
+    queueSynchronizer = getQueueRCUSynchronizer(RBTreeSynchronizer, queueID);
+
+    writeLockRCU(queueSynchronizer);
+
+    queue = (SemiLockFreeQueue *) queueSynchronizer->RCUProtectedDataStructure;
 
     if (strcmp(attr->name, "max_message_size") == 0)
-        sscanf(buf, "%du", &(waitFreeQueue->maxMessageSize));
+        sscanf(buf, "%ldu", &(queue->maxMessageSize));
     else
-        sscanf(buf, "%du", &(waitFreeQueue->maxStorageSize));
+        sscanf(buf, "%ldu", &(queue->maxStorageSize));
+
+    writeUnlockRCU(queueSynchronizer, queueSynchronizer->RCUProtectedDataStructure);
 
     return count;
 }
-*/
 
 static int TMS_open(struct inode *inode, struct file *file) {
 
@@ -92,7 +116,7 @@ static int TMS_open(struct inode *inode, struct file *file) {
 
             writeUnlockRCU(RBTreeSynchronizer, newRBTree);
 
-            //freeRBTreeContentExcluded(oldRBTree);
+            freeRBTreeContentExcluded(oldRBTree);
         }
     }
 
@@ -211,20 +235,7 @@ static struct file_operations TMSOperation = {
 };
 
 /*
-struct sysfs_ops *allocateAndInitializeSysFileSystemOperation(void) {
 
-    struct sysfs_ops *output;
-
-    output = kmalloc(sizeof(struct sysfs_ops), GFP_KERNEL);
-    if (output == NULL)
-        printk("'%s': 'struct sysfs_ops' allocation failed!\n", MODULE_NAME);
-    else {
-        output->show = var_show;
-        output->store = var_store;
-    }
-
-    return output;
-}
 
 
 void createAndInitializeNewWaitFreeQueue(unsigned long id) {

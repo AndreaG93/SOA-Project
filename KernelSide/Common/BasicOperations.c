@@ -2,6 +2,13 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 
+long stringToLong(const char *input) {
+
+    long output;
+    kstrtol(input, 10, &output);
+    return output;
+}
+
 char *convertIntToString(int input) {
 
     char *output;
@@ -11,12 +18,5 @@ char *convertIntToString(int input) {
     output = kmalloc(numberOfCharacter + 1, sizeof(char));
     snprintf(output, numberOfCharacter + 1, "%d", input);
 
-    return output;
-}
-
-long stringToLong(char *input) {
-
-    long output;
-    kstrtol(input, 10, &output);
     return output;
 }

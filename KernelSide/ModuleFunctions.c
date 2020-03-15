@@ -7,6 +7,23 @@
 #include "DataStructure/SemiLockFreeQueue.h"
 #include "DataStructure/Message.h"
 
+
+struct sysfs_ops *
+allocateAndInitializeSysFileSystemOperation(ssize_t (*show)(struct kobject *, struct attribute *, char *),
+                                            ssize_t (*store)(struct kobject *, struct attribute *, const char *, size_t)) {
+
+    struct sysfs_ops *output;
+
+    output = kmalloc(sizeof(struct sysfs_ops), GFP_KERNEL);
+    if (output != NULL) {
+
+        output->show = show;
+        output->store = store;
+    }
+
+    return output;
+}
+
 RCUSynchronizer *getQueueRCUSynchronizer(RCUSynchronizer *RBTreeSynchronizer, unsigned long queueID) {
 
     RCUSynchronizer *output;
@@ -59,7 +76,7 @@ void fullyRemoveQueueSynchronizer(void *input) {
     freeRCUSynchronizer(queueSynchronizer, &fullyRemoveQueue);
 }
 
-void fullyRemoveRBTreeSynchronizer(RCUSynchronizer* input) {
+void fullyRemoveRBTreeSynchronizer(RCUSynchronizer *input) {
 
     freeRBTreeContentIncluded(input->RCUProtectedDataStructure, &fullyRemoveQueueSynchronizer);
     kfree(input);

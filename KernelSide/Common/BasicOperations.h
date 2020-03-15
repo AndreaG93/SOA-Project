@@ -1,5 +1,5 @@
 #pragma once
 
-long stringToLong(char *input);
+long stringToLong(const char *input);
 
 char *convertIntToString(int input);
