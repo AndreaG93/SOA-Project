@@ -58,7 +58,7 @@ static int TMS_open(struct inode *inode, struct file *file) {
     RCUSynchronizer *queueSynchronizer;
     int queueID;
 
-    queueID = iminor(inode);
+    queueID = iminor(file->f_inode);
 
     printk("'%s': 'TMS_open' function is been called with minor number %d!\n", MODULE_NAME, queueID);
 
@@ -92,7 +92,7 @@ static int TMS_open(struct inode *inode, struct file *file) {
 
             writeUnlockRCU(RBTreeSynchronizer, newRBTree);
 
-            freeRBTreeContentExcluded(oldRBTree);
+            //freeRBTreeContentExcluded(oldRBTree);
         }
     }
 

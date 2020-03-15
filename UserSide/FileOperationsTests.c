@@ -14,12 +14,8 @@ void readTest() {
     char buffer[6];
 
     errno = 0;
-    fileDescriptor = open("/dev/TMS1", O_RDONLY);
-
-    if (fileDescriptor == 1) {
-        fprintf(stderr, "[ERROR] %s", strerror(errno));
-        exit(EXIT_FAILURE);
-    }
+    int fileDescriptor1 = open("/dev/TMS1", O_RDONLY);
+    int fileDescriptor2 = open("/dev/TMS2", O_RDONLY);
 
     /*
     if (read(fileDescriptor, buffer,6) < 0) {
@@ -29,9 +25,7 @@ void readTest() {
         fprintf(stdout, "Value Read: %s\n", buffer);
 */
 
-    errno = 0;
-    if (close(fileDescriptor) != 0) {
-        fprintf(stderr, "[ERROR] %s", strerror(errno));
-        exit(EXIT_FAILURE);
-    }
+
+    close(fileDescriptor1);
+    close(fileDescriptor2);
 }

@@ -111,29 +111,25 @@ void freeRBTree(RBTree *input, void (*dataFreeFunction)(void *)) {
 
     RBTreeNodeContent *currentNodeContent;
     struct rb_node *currentNode;
-    struct rb_node *nextNode;
 
-#ifdef DEBUG
-    printk("'%s': 'freeRBTree' function called!\n", MODULE_NAME);
-#endif
+    while(TRUE) {
 
-    for (currentNode = rb_first(input); currentNode;) {
+        currentNode = rb_first(input);
 
-        nextNode = rb_next(currentNode);
-        currentNodeContent = container_of(currentNode, RBTreeNodeContent, node);
+        if (currentNode == NULL)
+            break;
+        else {
 
-        if (dataFreeFunction != NULL)
-            (*dataFreeFunction)(currentNodeContent->data);
+            currentNodeContent = container_of(currentNode, RBTreeNodeContent, node);
+            if (dataFreeFunction != NULL)
+                (*dataFreeFunction)(currentNodeContent->data);
 
-        kfree(currentNodeContent);
-        kfree(currentNode);
-
-        currentNode = nextNode;
+            rb_erase(&currentNodeContent->node, input);
+        }
     }
 
     kfree(input);
 }
-
 
 void freeRBTreeContentExcluded(RBTree *input) {
     freeRBTree(input, NULL);
