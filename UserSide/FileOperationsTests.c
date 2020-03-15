@@ -1,7 +1,3 @@
-//
-// Created by andrea on 08/03/20.
-//
-
 #include <stdio.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -9,7 +5,8 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "FileOperationsTests.h"
+// Remember to call: mknod /dev/TMS1 c 238 0
+
 
 void readTest() {
 
@@ -24,11 +21,13 @@ void readTest() {
         exit(EXIT_FAILURE);
     }
 
+    /*
     if (read(fileDescriptor, buffer,6) < 0) {
         fprintf(stderr, "[ERROR] %s", strerror(errno));
         exit(EXIT_FAILURE);
     } else
         fprintf(stdout, "Value Read: %s\n", buffer);
+*/
 
     errno = 0;
     if (close(fileDescriptor) != 0) {

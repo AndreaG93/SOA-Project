@@ -1,6 +1,7 @@
 #include "RBTree.h"
 
 #include "../Common/BasicDefines.h"
+#include "../Common/ModuleMetadata.h"
 
 #include <linux/rbtree.h>
 #include <linux/kernel.h>
@@ -94,7 +95,7 @@ void *searchRBTree(RBTree *input, unsigned int id) {
 
 RBTree *copyRBTree(RBTree *input) {
 
-    RBTree* newRBTree = allocateRBTree();
+    RBTree *newRBTree = allocateRBTree();
 
     struct rb_node *currentNode;
     for (currentNode = rb_first(input); currentNode; currentNode = rb_next(currentNode)) {
@@ -112,7 +113,11 @@ void freeRBTree(RBTree *input, void (*dataFreeFunction)(void *)) {
     struct rb_node *currentNode;
     struct rb_node *nextNode;
 
-    for (currentNode = rb_first(input); currentNode; ) {
+#ifdef DEBUG
+    printk("'%s': 'freeRBTree' function called!\n", MODULE_NAME);
+#endif
+
+    for (currentNode = rb_first(input); currentNode;) {
 
         nextNode = rb_next(currentNode);
         currentNodeContent = container_of(currentNode, RBTreeNodeContent, node);
@@ -137,3 +142,19 @@ void freeRBTreeContentExcluded(RBTree *input) {
 void freeRBTreeContentIncluded(RBTree *input, void (*dataFreeFunction)(void *)) {
     freeRBTree(input, dataFreeFunction);
 }
+
+#ifdef DEBUG
+void freeRBTreeTraverse(RBTree *input) {
+
+    printk("'%s': Start RBTree traversing!\n", MODULE_NAME, currentNodeContent->id);
+
+    struct rb_node *currentNode;
+    for (currentNode = rb_first(input); currentNode; currentNode = rb_next(currentNode)) {
+
+        RBTreeNodeContent *currentNodeContent = container_of(currentNode, RBTreeNodeContent, node);
+        printk("'%s': Node with ID %d found!\n", MODULE_NAME, currentNodeContent->id);
+    }
+
+    return newRBTree;
+}
+#endif

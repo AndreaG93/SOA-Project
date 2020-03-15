@@ -73,6 +73,7 @@ static int TMS_open(struct inode *inode, struct file *file) {
 
             writeUnlockRCU(RBTreeSynchronizer, RBTreeSynchronizer->RCUProtectedDataStructure);
             return SUCCESS;
+
         } else {
 
             RBTree *newRBTree;
@@ -84,6 +85,10 @@ static int TMS_open(struct inode *inode, struct file *file) {
             newRBTree = copyRBTree(oldRBTree);
 
             insertRBTree(newRBTree, queueID, queueSynchronizer);
+
+#ifdef DEBUG
+            freeRBTreeTraverse(newRBTree);
+#endif
 
             writeUnlockRCU(RBTreeSynchronizer, newRBTree);
 
