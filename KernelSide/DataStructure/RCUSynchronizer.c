@@ -51,3 +51,9 @@ void writeUnlockRCU(RCUSynchronizer *input, void *newDataStructureToProtect) {
 
     spin_unlock(&input->writeLock)
 }
+
+void freeRCUSynchronizer(RCUSynchronizer *input, void (*dataFreeFunction)(void *)) {
+
+    (*dataFreeFunction)(input->RCUProtectedDataStructure);
+    kfree(input);
+}

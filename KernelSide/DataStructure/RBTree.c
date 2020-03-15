@@ -108,31 +108,40 @@ RBTree *copyRBTree(RBTree *input) {
 
 void freeRBTree(RBTree *input) {
 
+    RBTreeNodeContent *currentNodeContent;
     struct rb_node *currentNode;
     struct rb_node *nextNode;
 
     for (currentNode = rb_first(input); currentNode; ) {
 
         nextNode = rb_next(currentNode);
-        kfree(currentNode);
-        currentNode = nextNode;
+        currentNodeContent = container_of(currentNode, RBTreeNodeContent, node);
 
+        kfree(currentNodeContent)
+        kfree(currentNode);
+
+        currentNode = nextNode;
     }
 
     kfree(input);
 }
 
-void freeRBTreeContentIncluded(RBTree *input) {
+void freeRBTreeContentIncluded(RBTree *input, void (*dataFreeFunction)(void *)) {
 
+    RBTreeNodeContent *currentNodeContent;
     struct rb_node *currentNode;
     struct rb_node *nextNode;
 
     for (currentNode = rb_first(input); currentNode; ) {
 
         nextNode = rb_next(currentNode);
-        kfree(currentNode);
-        currentNode = nextNode;
+        currentNodeContent = container_of(currentNode, RBTreeNodeContent, node);
 
+        (*dataFreeFunction)(currentNodeContent->data);
+        kfree(currentNodeContent)
+        kfree(currentNode);
+
+        currentNode = nextNode;
     }
 
     kfree(input);

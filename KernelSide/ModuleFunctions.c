@@ -4,6 +4,7 @@
 #include "./DataStructure/RBTree.h"
 #include "./DataStructure/RCUSynchronizer.h"
 #include "./DataStructure/SemiLockFreeQueue.h"
+#include "./DataStructure/Message.h"
 
 RCUSynchronizer *getQueueRCUSynchronizer(RCUSynchronizer *RBTreeSynchronizer, unsigned long queueID) {
 
@@ -28,4 +29,34 @@ RCUSynchronizer *allocateNewQueueRCUSynchronizer(void) {
         freeSemiLockFreeQueue(outputQueue);
 
     return output;
+}
+
+void fullyMessage(void *input) {
+
+    Message *message;
+
+    message = (Message *) input;
+    freeMessage(message);
+}
+
+void fullyRemoveQueue(void *input) {
+
+    SemiLockFreeQueue *queue;
+
+    queue = (SemiLockFreeQueue *) input;
+    freeSemiLockFreeQueue(queue, &fullyMessage);
+}
+
+void fullyRemoveQueueSynchronizer(void *input) {
+
+    RCUSynchronizer *queueSynchronizer;
+
+    queueSynchronizer = (RCUSynchronizer *) input;
+    freeRCUSynchronizer(queueSynchronizer, &fullyRemoveQueue);
+}
+
+void fullyRemoveRBTreeSynchronizer(RCUSynchronizer* input) {
+
+    freeRBTreeContentIncluded(input->RCUProtectedDataStructure, &fullyRemoveQueueSynchronizer);
+    kfree(input);
 }

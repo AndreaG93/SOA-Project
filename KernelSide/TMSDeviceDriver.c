@@ -16,8 +16,7 @@
 #include "TMSDeviceDriver.h"
 #include "KObjectManagement.h"
 
-static *
-RCUSynchronizer RBTreeSynchronizer;
+static *RCUSynchronizer RBTreeSynchronizer;
 static int majorNumber;
 static struct kobject *kObjectParent;
 
@@ -319,6 +318,8 @@ int registerTMSDeviceDriver(void) {
 }
 
 void unregisterTMSDeviceDriver(void) {
+
+    fullyRemoveRBTreeSynchronizer(RBTreeSynchronizer);
 
     unregister_chrdev(majorNumber, DEVICE_DRIVER_NAME);
     printk("'%s': char device is been successfully unregistered!!\n", MODULE_NAME);
