@@ -87,7 +87,7 @@ static int TMS_open(struct inode *inode, struct file *file) {
             insertRBTree(newRBTree, queueID, queueSynchronizer);
 
 #ifdef DEBUG
-            freeRBTreeTraverse(newRBTree);
+            traverseRBTree(newRBTree);
 #endif
 
             writeUnlockRCU(RBTreeSynchronizer, newRBTree);

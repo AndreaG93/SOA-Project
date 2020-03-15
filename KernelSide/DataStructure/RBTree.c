@@ -149,9 +149,11 @@ void freeRBTreeTraverse(RBTree *input) {
     printk("'%s': Start RBTree traversing!\n", MODULE_NAME, currentNodeContent->id);
 
     struct rb_node *currentNode;
+    RBTreeNodeContent *currentNodeContent;
+
     for (currentNode = rb_first(input); currentNode; currentNode = rb_next(currentNode)) {
 
-        RBTreeNodeContent *currentNodeContent = container_of(currentNode, RBTreeNodeContent, node);
+        currentNodeContent = container_of(currentNode, RBTreeNodeContent, node);
         printk("'%s': Node with ID %d found!\n", MODULE_NAME, currentNodeContent->id);
     }
 
