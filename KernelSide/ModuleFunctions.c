@@ -2,15 +2,16 @@
 
 #include "ModuleFunctions.h"
 #include "Common/BasicDefines.h"
+#include "Common/KObjectManagement.h"
 #include "DataStructure/RBTree.h"
 #include "DataStructure/RCUSynchronizer.h"
 #include "DataStructure/SemiLockFreeQueue.h"
 #include "DataStructure/Message.h"
 
-
 struct sysfs_ops *
 allocateAndInitializeSysFileSystemOperation(ssize_t (*show)(struct kobject *, struct attribute *, char *),
-                                            ssize_t (*store)(struct kobject *, struct attribute *, const char *, size_t)) {
+                                            ssize_t (*store)(struct kobject *, struct attribute *, const char *,
+                                                             size_t)) {
 
     struct sysfs_ops *output;
 
@@ -22,6 +23,61 @@ allocateAndInitializeSysFileSystemOperation(ssize_t (*show)(struct kobject *, st
     }
 
     return output;
+}
+
+struct kobject *allocateSemiLockFreeQueueKObject(unsigned long queueID,
+                                                 ssize_t (*show)(struct kobject *, struct attribute *, char *),
+                                                 ssize_t (*store)(struct kobject *, struct attribute *, const char *size_t)) {
+
+    char *kObjectName;
+    struct kobject *kObject;
+    struct kobj_type *kType;
+    const struct attribute_group **attributesGroups;
+
+    kObjectName = convertIntToString(id);
+
+    kObject = kobject_create_and_add(kObjectName, kObjectParent);
+    if (kObject == NULL)
+        return NULL;
+
+    kType = kmalloc(sizeof(struct kobj_type), GFP_KERNEL);
+    if (kType == NULL) {
+
+        kobject_put(kObject);
+        kfree(kObject);
+    }
+
+    attributesGroups = kmalloc(sizeof(const struct attribute_group *), GFP_KERNEL);
+    if (attributesGroups == NULL) {
+
+        kobject_put(kObject);
+        kfree(kObject);
+    }
+
+    attributesGroups[0] = allocateAttributeGroup(S_IWUSR | S_IRWXG, 2, "max_message_size", "max_storage_size");
+    if (attributesGroups == NULL) {
+
+        kobject_put(kObject);
+        kfree(kObject);
+        kfree(kType);
+    }
+
+    sysFSOperations = allocateAndInitializeSysFileSystemOperation(show, store);
+    if (sysFSOperations == NULL) {
+
+        freeAttributeGroup(attributesGroups[0], 2)
+        kobject_put(kObject);
+        kfree(kObject);
+        kfree(kType);
+    }
+
+    kType->default_groups = attributesGroups;
+    kType->sysfs_ops = sysFSOperations;
+    kObject->ktype = kType;
+
+    createAttributeGroupSysFiles(kObject, 2);
+
+    return kObject;
 }
 
 RCUSynchronizer *getQueueRCUSynchronizer(RCUSynchronizer *RBTreeSynchronizer, unsigned long queueID) {
@@ -36,12 +92,20 @@ RCUSynchronizer *getQueueRCUSynchronizer(RCUSynchronizer *RBTreeSynchronizer, un
     return output;
 }
 
-RCUSynchronizer *allocateNewQueueRCUSynchronizer(void) {
+RCUSynchronizer *
+allocateNewQueueRCUSynchronizer(unsigned long queueID,
+                                ssize_t (*show)(struct kobject *, struct attribute *, char *),
+                                ssize_t (*store)(struct kobject *, struct attribute *, const char *size_t)) {
 
     RCUSynchronizer *output;
     SemiLockFreeQueue *outputQueue;
+    struct kobject *kObject;
 
-    outputQueue = allocateSemiLockFreeQueue(DEFAULT_MAX_MESSAGE_SIZE, DEFAULT_MAX_STORAGE_SIZE, NULL);  // TODO KOBJECT
+    kObject = allocateSemiLockFreeQueueKObject(queueID, show, store);
+    if (kObject == NULL)
+        return NULL;
+
+    outputQueue = allocateSemiLockFreeQueue(DEFAULT_MAX_MESSAGE_SIZE, DEFAULT_MAX_STORAGE_SIZE, kObject);
     if (outputQueue == NULL)
         return NULL;
 

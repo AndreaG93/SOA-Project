@@ -17,7 +17,7 @@
 
 #include "ModuleFunctions.h"
 #include "TMSDeviceDriver.h"
-#include "KObjectManagement.h"
+#include "Common/KObjectManagement.h"
 
 static RCUSynchronizer* RBTreeSynchronizer;
 static int majorNumber;
@@ -72,6 +72,9 @@ static ssize_t TMS_store(struct kobject *kobj, struct attribute *attr, const cha
     else
         sscanf(buf, "%ldu", &(queue->maxStorageSize));
 
+    printk("'%s': 'maxMessageSize' variable of 'SemiLockFreeQueue' with index %d is now %ld!\n", MODULE_NAME, queueID, queue->maxMessageSize);
+    printk("'%s': 'maxStorageSize' variable of 'SemiLockFreeQueue' with index %d is now %ld!\n", MODULE_NAME, queueID, queue->maxStorageSize);
+
     writeUnlockRCU(queueSynchronizer, queueSynchronizer->RCUProtectedDataStructure);
 
     return count;
@@ -103,7 +106,7 @@ static int TMS_open(struct inode *inode, struct file *file) {
             RBTree *newRBTree;
             RBTree *oldRBTree;
 
-            queueSynchronizer = allocateNewQueueRCUSynchronizer();
+            queueSynchronizer = allocateNewQueueRCUSynchronizer(queueID, &TMS_show, &TMS_store);
 
             oldRBTree = RBTreeSynchronizer->RCUProtectedDataStructure;
             newRBTree = copyRBTree(oldRBTree);
@@ -233,76 +236,6 @@ static struct file_operations TMSOperation = {
         unlocked_ioctl: TMS_unlocked_ioctl,
         flush: TMS_flush
 };
-
-/*
-
-
-
-void createAndInitializeNewWaitFreeQueue(unsigned long id) {
-
-    WaitFreeQueue *waitFreeQueue;
-    struct kobject *kObject;
-    struct kobj_type *kType;
-    const struct attribute_group *attributesGroups;
-    struct sysfs_ops *sysFSOperations;
-    char *kObjectName;
-
-    kObjectName = convertIntToString(id);
-    printk("'%s': creating 'WaitFreeQueue' %s!\n", MODULE_NAME, kObjectName);
-
-    kObject = kobject_create_and_add(kObjectName, kObjectParent);
-    if (kObject == NULL) {
-
-        printk("'%s': 'kobject_create_and_add' failed!\n", MODULE_NAME);
-        return;
-
-    } else {
-
-        kType = kmalloc(sizeof(struct kobj_type), GFP_KERNEL);
-        if (kType == NULL) {
-
-            printk("'%s': 'struct kobj_type' allocation failed!\n", MODULE_NAME);
-            goto FAILURE_FREEING_K_OBJECT;
-
-        } else {
-
-
-            attributesGroups = allocateAttributeGroup(S_IWUSR | S_IRWXG, 2, "max_message_size", "max_storage_size");
-            if (attributesGroups == NULL) {
-
-                printk("'%s': 'allocateKObjectAttributeGroup' failed!\n", MODULE_NAME);
-
-                goto FAILURE_FREEING_K_OBJECT;
-            }
-
-            sysFSOperations = allocateAndInitializeSysFileSystemOperation();
-            if (sysFSOperations == NULL) {
-
-                printk("'%s': 'allocateAndInitializeSysFileSystemOperation' failed!\n", MODULE_NAME);
-
-                freeAttributeGroup(attributesGroups, 2);
-                goto FAILURE_FREEING_K_OBJECT;
-            }
-
-            kType->default_groups = &attributesGroups;
-            kType->sysfs_ops = sysFSOperations;
-
-            kObject->ktype = kType;
-
-            waitFreeQueue = allocateAndInitializeWaitFreeQueue(5, 5, kObject);
-
-            insert(RCUTree, id, waitFreeQueue);
-
-            createAttributeGroupSysFiles(kObject, 2);
-        }
-    }
-
-    FAILURE_FREEING_K_OBJECT:
-
-    kobject_put(kObject);
-    kfree(kObject);
-}
-*/
 
 int registerTMSDeviceDriver(void) {
 

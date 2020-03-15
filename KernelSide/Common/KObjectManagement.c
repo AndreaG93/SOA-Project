@@ -4,7 +4,7 @@
 #include <linux/slab.h>
 
 #include "KObjectManagement.h"
-#include "Common/ModuleMetadata.h"
+#include "ModuleMetadata.h"
 
 void freeKObject(struct kobject *input, unsigned long attributeGroupSize) {
 
