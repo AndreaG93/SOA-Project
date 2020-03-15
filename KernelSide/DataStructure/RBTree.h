@@ -1,6 +1,7 @@
 #pragma once
 
 #include <linux/rbtree.h>
+#include "../Common/BasicDefines.h"
 
 typedef struct rb_root RBTree;
 
@@ -17,5 +18,5 @@ void freeRBTreeContentExcluded(RBTree *input);
 void freeRBTreeContentIncluded(RBTree *input, void (*dataFreeFunction)(void *));
 
 #ifdef DEBUG
-void freeRBTreeTraverse(RBTree *input);
+void traverseRBTree(RBTree *input);
 #endif

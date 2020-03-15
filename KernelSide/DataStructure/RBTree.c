@@ -144,19 +144,17 @@ void freeRBTreeContentIncluded(RBTree *input, void (*dataFreeFunction)(void *)) 
 }
 
 #ifdef DEBUG
-void freeRBTreeTraverse(RBTree *input) {
-
-    printk("'%s': Start RBTree traversing!\n", MODULE_NAME, currentNodeContent->id);
+void traverseRBTree(RBTree *input) {
 
     struct rb_node *currentNode;
     RBTreeNodeContent *currentNodeContent;
+
+    printk("'%s': Start RBTree traversing!\n", MODULE_NAME);
 
     for (currentNode = rb_first(input); currentNode; currentNode = rb_next(currentNode)) {
 
         currentNodeContent = container_of(currentNode, RBTreeNodeContent, node);
         printk("'%s': Node with ID %d found!\n", MODULE_NAME, currentNodeContent->id);
     }
-
-    return newRBTree;
 }
 #endif
