@@ -1,10 +1,11 @@
+#include <linux/slab.h>
 
 #include "ModuleFunctions.h"
-#include "./BasicOperations/BasicDefines.h"
-#include "./DataStructure/RBTree.h"
-#include "./DataStructure/RCUSynchronizer.h"
-#include "./DataStructure/SemiLockFreeQueue.h"
-#include "./DataStructure/Message.h"
+#include "Common/BasicDefines.h"
+#include "DataStructure/RBTree.h"
+#include "DataStructure/RCUSynchronizer.h"
+#include "DataStructure/SemiLockFreeQueue.h"
+#include "DataStructure/Message.h"
 
 RCUSynchronizer *getQueueRCUSynchronizer(RCUSynchronizer *RBTreeSynchronizer, unsigned long queueID) {
 
@@ -12,7 +13,7 @@ RCUSynchronizer *getQueueRCUSynchronizer(RCUSynchronizer *RBTreeSynchronizer, un
     unsigned long epoch;
 
     epoch = readLockRCUGettingEpoch(RBTreeSynchronizer);
-    output = (RCUSynchronizer *) searchRBTree(RBTreeSynchronizer->RCUProtectedDataStructure, queueSynchronizerID);
+    output = (RCUSynchronizer *) searchRBTree(RBTreeSynchronizer->RCUProtectedDataStructure, queueID);
     readUnlockRCU(RBTreeSynchronizer, epoch);
 
     return output;
@@ -20,18 +21,21 @@ RCUSynchronizer *getQueueRCUSynchronizer(RCUSynchronizer *RBTreeSynchronizer, un
 
 RCUSynchronizer *allocateNewQueueRCUSynchronizer(void) {
 
-    SemiLockFreeQueue *outputQueue = allocateSemiLockFreeQueue(DEFAULT_MAX_MESSAGE_SIZE, DEFAULT_MAX_STORAGE_SIZE, NULL);  // TODO KOBJECT
+    RCUSynchronizer *output;
+    SemiLockFreeQueue *outputQueue;
+
+    outputQueue = allocateSemiLockFreeQueue(DEFAULT_MAX_MESSAGE_SIZE, DEFAULT_MAX_STORAGE_SIZE, NULL);  // TODO KOBJECT
     if (outputQueue == NULL)
         return NULL;
 
-    RCUSynchronizer *output = allocateRCUSynchronizer(outputQueue);
+    output = allocateRCUSynchronizer(outputQueue);
     if (output == NULL)
-        freeSemiLockFreeQueue(outputQueue);
+        freeSemiLockFreeQueue(outputQueue, &fullyRemoveMessage);
 
     return output;
 }
 
-void fullyMessage(void *input) {
+void fullyRemoveMessage(void *input) {
 
     Message *message;
 
@@ -44,7 +48,7 @@ void fullyRemoveQueue(void *input) {
     SemiLockFreeQueue *queue;
 
     queue = (SemiLockFreeQueue *) input;
-    freeSemiLockFreeQueue(queue, &fullyMessage);
+    freeSemiLockFreeQueue(queue, &fullyRemoveMessage);
 }
 
 void fullyRemoveQueueSynchronizer(void *input) {

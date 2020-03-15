@@ -1,6 +1,6 @@
 #include "SemiLockFreeQueue.h"
-#include "../BasicOperations/BasicDefines.h"
-#include "../BasicOperations/SynchronizationPrimitives.h"
+#include "../Common/BasicDefines.h"
+#include "../Common/SynchronizationPrimitives.h"
 
 #include <linux/slab.h>
 #include <linux/kobject.h>
@@ -42,7 +42,7 @@ SemiLockFreeQueue *allocateSemiLockFreeQueue(long maxMessageSize, long maxStorag
 
         } else {
 
-            free(output);
+            kfree(output);
             output = NULL;
         }
     }
@@ -56,16 +56,16 @@ void freeSemiLockFreeQueue(SemiLockFreeQueue *queue, void (*dataFreeFunction)(vo
 
     while (queue->head != NULL) {
 
-        nextNode = queue->head->next;
+        nextNode = ((SemiLockFreeQueueNode *) queue->head)->next;
 
-        if (queue->head->data != NULL)
-            (*dataFreeFunction)(queue->head->data);
+        if (((SemiLockFreeQueueNode *) queue->head)->data != NULL)
+            (*dataFreeFunction)(((SemiLockFreeQueueNode *) queue->head)->data);
 
-        free(queue->head);
+        kfree(queue->head);
         queue->head = nextNode;
     }
 
-    free(queue);
+    kfree(queue);
 }
 
 unsigned char enqueue(SemiLockFreeQueue *queue, void *data) {
@@ -113,7 +113,7 @@ void *dequeue(SemiLockFreeQueue *queue) {
 
     output = ((SemiLockFreeQueueNode *) actualHead->next)->data;
     queue->head = actualHead->next;
-    free(actualHead);
+    kfree(actualHead);
 
     return output;
 }

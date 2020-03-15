@@ -4,7 +4,7 @@
 #include <linux/slab.h>
 
 #include "KObjectManagement.h"
-#include "ModuleMetadata.h"
+#include "Common/ModuleMetadata.h"
 
 void freeKObject(struct kobject *input, unsigned long attributeGroupSize) {
 
@@ -30,6 +30,7 @@ const struct attribute_group *allocateAttributeGroup(umode_t defaultAttributesMo
     struct attribute_group *output;
     struct attribute **attributeList;
     struct attribute *attribute;
+    int index;
 
     output = kmalloc(sizeof(const struct attribute_group), GFP_KERNEL);
     if (output == NULL)
@@ -49,7 +50,6 @@ const struct attribute_group *allocateAttributeGroup(umode_t defaultAttributesMo
             va_list ap;
             va_start(ap, attributeGroupSize);
 
-            int index;
             for (index = 0; index < attributeGroupSize; index++) {
 
                 attribute = kmalloc(sizeof(struct attribute), GFP_KERNEL);

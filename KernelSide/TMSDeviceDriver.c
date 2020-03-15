@@ -6,17 +6,19 @@
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
 
-#include "BasicOperations/BasicDefines.h"
+#include "Common/BasicDefines.h"
+#include "Common/ModuleMetadata.h"
+
 #include "DataStructure/RBTree.h"
-#include "DataStructure/SemiLockFreeQueue.h
+#include "DataStructure/SemiLockFreeQueue.h"
 #include "DataStructure/RCUSynchronizer.h"
 #include "DataStructure/Message.h"
+
 #include "ModuleFunctions.h"
-#include "ModuleMetadata.h"
 #include "TMSDeviceDriver.h"
 #include "KObjectManagement.h"
 
-static *RCUSynchronizer RBTreeSynchronizer;
+static RCUSynchronizer* RBTreeSynchronizer;
 static int majorNumber;
 static struct kobject *kObjectParent;
 
@@ -54,11 +56,11 @@ static ssize_t var_store(struct kobject *kobj, struct attribute *attr, const cha
 static int TMS_open(struct inode *inode, struct file *file) {
 
     RCUSynchronizer *queueSynchronizer;
-    unsigned long queueID;
+    int queueID;
 
     queueID = iminor(inode);
 
-    printk("'%s': 'TMS_open' function is been called with minor number %d!\n", DEVICE_DRIVER_NAME, queueID);
+    printk("'%s': 'TMS_open' function is been called with minor number %d!\n", MODULE_NAME, queueID);
 
     queueSynchronizer = getQueueRCUSynchronizer(RBTreeSynchronizer, queueID);
 
@@ -85,7 +87,7 @@ static int TMS_open(struct inode *inode, struct file *file) {
 
             writeUnlockRCU(RBTreeSynchronizer, newRBTree);
 
-            freeRBTree(oldRBTree);
+            freeRBTreeContentExcluded(oldRBTree);
         }
     }
 
@@ -97,13 +99,13 @@ static ssize_t TMS_read(struct file *file, char *userBuffer, size_t userBufferSi
     Message *message;
     SemiLockFreeQueue *queue;
     RCUSynchronizer *queueSynchronizer;
-    unsigned long queueID;
+    int queueID;
     unsigned long epoch;
     unsigned char output;
 
-    queueID = iminor(inode);
+    queueID = iminor(file->f_inode);
 
-    printk("'%s': 'TMS_read' function is been called with minor number %d!\n", DEVICE_DRIVER_NAME, queueID);
+    printk("'%s': 'TMS_read' function is been called with minor number %d!\n", MODULE_NAME, queueID);
 
     queueSynchronizer = getQueueRCUSynchronizer(RBTreeSynchronizer, queueID);
 
@@ -129,12 +131,12 @@ static ssize_t TMS_write(struct file *file, const char *userBuffer, size_t userB
     Message *message;
     SemiLockFreeQueue *queue;
     RCUSynchronizer *queueSynchronizer;
-    unsigned long queueID;
+    int queueID;
     unsigned long epoch;
 
-    queueID = iminor(inode);
+    queueID = iminor(file->f_inode);
 
-    printk("'%s': 'TMS_write' function is been called with minor number %d!\n", DEVICE_DRIVER_NAME, queueID);
+    printk("'%s': 'TMS_write' function is been called with minor number %d!\n", MODULE_NAME, queueID);
 
     queueSynchronizer = getQueueRCUSynchronizer(RBTreeSynchronizer, queueID);
 
@@ -149,16 +151,18 @@ static ssize_t TMS_write(struct file *file, const char *userBuffer, size_t userB
 
     } else {
 
-        message = allocateMessage(userBuffer, userBufferSize);
+        message = createMessageFromUserBuffer(userBuffer, userBufferSize);
         enqueue(queue, message);
         readUnlockRCU(queueSynchronizer, epoch);
     }
+
+    return SUCCESS;
 }
 
 
 static int TMS_release(struct inode *inode, struct file *file) {
 
-    printk("'%s': 'TMS_release' function is been called!\n", DEVICE_DRIVER_NAME);
+    printk("'%s': 'TMS_release' function is been called!\n", MODULE_NAME);
     return 0;
 }
 
@@ -168,11 +172,11 @@ static int TMS_flush(struct file *file, fl_owner_t id) {
     SemiLockFreeQueue *oldQueue;
     SemiLockFreeQueue *newQueue;
     RCUSynchronizer *queueSynchronizer;
-    unsigned long queueID;
+    int queueID;
 
-    queueID = iminor(inode);
+    queueID = iminor(file->f_inode);
 
-    printk("'%s': 'TMS_flush' function is been called with minor number %d!\n", DEVICE_DRIVER_NAME, queueID);
+    printk("'%s': 'TMS_flush' function is been called with minor number %d!\n", MODULE_NAME, queueID);
 
     queueSynchronizer = getQueueRCUSynchronizer(RBTreeSynchronizer, queueID);
 
@@ -183,7 +187,7 @@ static int TMS_flush(struct file *file, fl_owner_t id) {
 
     writeUnlockRCU(queueSynchronizer, newQueue);
 
-    freeSemiLockFreeQueue(oldQueue);
+    freeSemiLockFreeQueue(oldQueue, &fullyRemoveMessage);
 
     return 0;
 }
@@ -286,7 +290,7 @@ void createAndInitializeNewWaitFreeQueue(unsigned long id) {
 
 int registerTMSDeviceDriver(void) {
 
-    majorNumber = register_chrdev(0, DEVICE_DRIVER_NAME, &TMSOperation);
+    majorNumber = register_chrdev(0, CHAR_DEVICE_NAME, &TMSOperation);
     if (majorNumber < 0) {
 
         printk("'%s': char device registration failed!\n", MODULE_NAME);
@@ -294,8 +298,7 @@ int registerTMSDeviceDriver(void) {
 
     } else {
 
-        RBTree * rbTree = allocateRBTree(
-        void);
+        RBTree * rbTree = allocateRBTree();
         if (rbTree == NULL) {
 
             printk("'%s': 'rbTree' allocation failed!\n", MODULE_NAME);
@@ -306,7 +309,7 @@ int registerTMSDeviceDriver(void) {
         if (RBTreeSynchronizer == NULL) {
 
             printk("'%s': 'RBTreeSynchronizer' allocation failed!\n", MODULE_NAME);
-            freeRedBlackTree(rbTree);
+            kfree(rbTree);
             return FAILURE;
         }
 
@@ -321,7 +324,7 @@ void unregisterTMSDeviceDriver(void) {
 
     fullyRemoveRBTreeSynchronizer(RBTreeSynchronizer);
 
-    unregister_chrdev(majorNumber, DEVICE_DRIVER_NAME);
+    unregister_chrdev(majorNumber, CHAR_DEVICE_NAME);
     printk("'%s': char device is been successfully unregistered!!\n", MODULE_NAME);
 
     kobject_put(kObjectParent);

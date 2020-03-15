@@ -1,5 +1,5 @@
 obj-m += TimedMessagingSystemModule.o
-TimedMessagingSystemModule-objs := TMSModule.o TMSDeviceDriver.o RCURedBlackTree.o KObjectManagement.o WaitFreeQueue.o
+TimedMessagingSystemModule-objs := TMSModule.o TMSDeviceDriver.o ModuleFunctions.o KObjectManagement.o DataStructure/Message.o DataStructure/RBTree.o DataStructure/RCUSynchronizer.o DataStructure/SemiLockFreeQueue.o Common/BasicOperations.o
 
 all:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules

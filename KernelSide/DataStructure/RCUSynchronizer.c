@@ -1,6 +1,7 @@
 #include "RCUSynchronizer.h"
 
 #include <linux/spinlock_types.h>
+#include <linux/slab.h>
 
 RCUSynchronizer *allocateRCUSynchronizer(void *dataStructureToProtect) {
 
@@ -11,7 +12,7 @@ RCUSynchronizer *allocateRCUSynchronizer(void *dataStructureToProtect) {
         output->standing[0] = 0;
         output->standing[1] = 0;
         output->RCUProtectedDataStructure = dataStructureToProtect;
-        spin_lock_init(output->writeLock)
+        spin_lock_init(&output->writeLock);
 
         asm volatile("mfence");
     }
@@ -21,7 +22,7 @@ RCUSynchronizer *allocateRCUSynchronizer(void *dataStructureToProtect) {
 
 unsigned int readLockRCUGettingEpoch(RCUSynchronizer *input) {
 
-    unsigned output = input->epoch;
+    unsigned int output = input->epoch;
 
     asm volatile("mfence");
     __sync_add_and_fetch(&input->standing[output], 1);
@@ -35,7 +36,7 @@ void readUnlockRCU(RCUSynchronizer *input, unsigned int epoch) {
 
 
 void writeLockRCU(RCUSynchronizer *input) {
-    spin_lock(&input->writeLock)
+    spin_lock(&input->writeLock);
 }
 
 void writeUnlockRCU(RCUSynchronizer *input, void *newDataStructureToProtect) {
@@ -49,7 +50,7 @@ void writeUnlockRCU(RCUSynchronizer *input, void *newDataStructureToProtect) {
 
     while (input->standing[gracePeriod] > 0);
 
-    spin_unlock(&input->writeLock)
+    spin_unlock(&input->writeLock);
 }
 
 void freeRCUSynchronizer(RCUSynchronizer *input, void (*dataFreeFunction)(void *)) {

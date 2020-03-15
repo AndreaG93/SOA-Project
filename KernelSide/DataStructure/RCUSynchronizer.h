@@ -4,8 +4,8 @@
 
 typedef struct {
 
-    unsigned long epoch;
-    unsigned long standing[2];
+    unsigned int epoch;
+    unsigned int standing[2];
     spinlock_t writeLock;
 
     void *RCUProtectedDataStructure;
@@ -16,7 +16,7 @@ RCUSynchronizer *allocateRCUSynchronizer(void *dataStructureToProtect);
 
 unsigned int readLockRCUGettingEpoch(RCUSynchronizer *input);
 
-void readUnlockRCU(RCUSynchronizer *input, unsigned long epoch);
+void readUnlockRCU(RCUSynchronizer *input, unsigned int epoch);
 
 void writeLockRCU(RCUSynchronizer *input);
 

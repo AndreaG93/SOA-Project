@@ -1,4 +1,6 @@
 #include "BasicOperations.h"
+#include <linux/kernel.h>
+#include <linux/slab.h>
 
 char *convertIntToString(int input) {
 
@@ -6,7 +8,7 @@ char *convertIntToString(int input) {
     int numberOfCharacter;
 
     numberOfCharacter = snprintf(NULL, 0, "%d", input);
-    char *output = kmalloc(numberOfCharacter + 1, sizeof(char));
+    output = kmalloc(numberOfCharacter + 1, sizeof(char));
     snprintf(output, numberOfCharacter + 1, "%d", input);
 
     return output;

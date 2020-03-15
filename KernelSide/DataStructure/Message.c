@@ -1,17 +1,19 @@
 #include "Message.h"
 
+#include <linux/types.h>
 #include <linux/slab.h>
-#include "../BasicOperations/BasicDefines.h"
+#include <linux/uaccess.h>
+#include "../Common/BasicDefines.h"
 
-Message *allocateMessage(void *userBuffer, size_t userBufferSize) {
+Message *createMessageFromUserBuffer(const char *userBuffer, size_t userBufferSize) {
 
     Message *output = kmalloc(sizeof(Message), GFP_KERNEL);
     if (output != NULL) {
 
-        output->data = kmalloc(userBufferSize, GFP_KERNEL);
-        if (output->data != NULL) {
+        output->content = kmalloc(userBufferSize, GFP_KERNEL);
+        if (output->content != NULL) {
 
-            output->size = size;
+            output->size = userBufferSize;
             if (copy_from_user(output->content, userBuffer, userBufferSize) != 0)
             {
                 kfree(output->content);
@@ -28,14 +30,14 @@ Message *allocateMessage(void *userBuffer, size_t userBufferSize) {
     return output;
 }
 
-unsigned char copyMessageToUserBuffer(Message *input, void *userBuffer, size_t userBufferSize) {
+int copyMessageToUserBuffer(Message *input, void *userBuffer, size_t userBufferSize) {
 
     unsigned long byteNotCopied;
 
     if (userBufferSize >= input->size)
-        byteNotCopied = copy_to_user(input->data, userBuffer, input->size);
+        byteNotCopied = copy_to_user(input->content, userBuffer, input->size);
     else
-        byteNotCopied = copy_to_user(input->data, userBuffer, userBufferSizee);
+        byteNotCopied = copy_to_user(input->content, userBuffer, userBufferSize);
 
     if (byteNotCopied != 0)
         return FAILURE;
@@ -45,6 +47,6 @@ unsigned char copyMessageToUserBuffer(Message *input, void *userBuffer, size_t u
 
 void freeMessage(Message *input) {
 
-    kfree(input->data);
+    kfree(input->content);
     kfree(input);
 }

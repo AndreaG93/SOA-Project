@@ -1,12 +1,14 @@
 #pragma once
 
+#include <linux/types.h>
+
 typedef struct {
     void *content;
     size_t size;
 } Message;
 
-Message *allocateMessage(void *userBuffer, size_t userBufferSize);
+Message *createMessageFromUserBuffer(const char *userBuffer, size_t userBufferSize);
 
-unsigned char copyMessageToUserBuffer(Message *input, void *userBuffer, size_t userBufferSize);
+int copyMessageToUserBuffer(Message *input, void *userBuffer, size_t userBufferSize);
 
 void freeMessage(Message *input);

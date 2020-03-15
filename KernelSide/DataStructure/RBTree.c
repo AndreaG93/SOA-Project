@@ -1,6 +1,6 @@
 #include "RBTree.h"
 
-#include "../BasicOperations/BasicDefines.h"
+#include "../Common/BasicDefines.h"
 
 #include <linux/rbtree.h>
 #include <linux/kernel.h>
@@ -41,12 +41,12 @@ int insertRBTree(RBTree *input, unsigned int id, void *data) {
 
         RBTreeNodeContent *currentNodeContent = NULL;
 
-        struct rb_node **new = &(root->rb_node);
+        struct rb_node **new = &(input->rb_node);
         struct rb_node *parent = NULL;
 
         while (*new) {
 
-            currentNodeContent = container_of(*new, NodeContent, node);
+            currentNodeContent = container_of(*new, RBTreeNodeContent, node);
             parent = *new;
 
             if (nodeContent->id < currentNodeContent->id)
@@ -61,7 +61,7 @@ int insertRBTree(RBTree *input, unsigned int id, void *data) {
         }
 
         rb_link_node(&nodeContent->node, parent, new);
-        rb_insert_color(&nodeContent->node, root);
+        rb_insert_color(&nodeContent->node, input);
 
         return SUCCESS;
     }
@@ -72,7 +72,7 @@ void *searchRBTree(RBTree *input, unsigned int id) {
     void *output = NULL;
     struct rb_node *currentNode;
 
-    currentNode = root->rb_node;
+    currentNode = input->rb_node;
 
     while (currentNode != NULL) {
 
@@ -106,7 +106,7 @@ RBTree *copyRBTree(RBTree *input) {
     return newRBTree;
 }
 
-void freeRBTree(RBTree *input) {
+void freeRBTree(RBTree *input, void (*dataFreeFunction)(void *)) {
 
     RBTreeNodeContent *currentNodeContent;
     struct rb_node *currentNode;
@@ -117,7 +117,10 @@ void freeRBTree(RBTree *input) {
         nextNode = rb_next(currentNode);
         currentNodeContent = container_of(currentNode, RBTreeNodeContent, node);
 
-        kfree(currentNodeContent)
+        if (dataFreeFunction != NULL)
+            (*dataFreeFunction)(currentNodeContent->data);
+
+        kfree(currentNodeContent);
         kfree(currentNode);
 
         currentNode = nextNode;
@@ -126,23 +129,11 @@ void freeRBTree(RBTree *input) {
     kfree(input);
 }
 
+
+void freeRBTreeContentExcluded(RBTree *input) {
+    freeRBTree(input, NULL);
+}
+
 void freeRBTreeContentIncluded(RBTree *input, void (*dataFreeFunction)(void *)) {
-
-    RBTreeNodeContent *currentNodeContent;
-    struct rb_node *currentNode;
-    struct rb_node *nextNode;
-
-    for (currentNode = rb_first(input); currentNode; ) {
-
-        nextNode = rb_next(currentNode);
-        currentNodeContent = container_of(currentNode, RBTreeNodeContent, node);
-
-        (*dataFreeFunction)(currentNodeContent->data);
-        kfree(currentNodeContent)
-        kfree(currentNode);
-
-        currentNode = nextNode;
-    }
-
-    kfree(input);
+    freeRBTree(input, dataFreeFunction);
 }
