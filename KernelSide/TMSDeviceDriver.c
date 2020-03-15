@@ -10,6 +10,7 @@
 #include "DataStructure/RBTree.h"
 #include "DataStructure/SemiLockFreeQueue.h
 #include "DataStructure/RCUSynchronizer.h"
+#include "./ModuleFunctions.h"
 #include "ModuleMetadata.h"
 #include "TMSDeviceDriver.h"
 #include "KObjectManagement.h"
@@ -76,29 +77,40 @@ RCUSynchronizer* allocateSemiLockFreeQueueSynchronizer() {
 static int TMS_open(struct inode *inode, struct file *file) {
 
     RCUSynchronizer *queueSynchronizer;
-    unsigned int queueSynchronizerID
-    unsigned int epoch
+    unsigned long queueID;
 
-    queueSynchronizerID = iminor(inode);
+    queueID = iminor(inode);
 
-    printk("'%s': 'TMS_open' function is been called with minor number %d!\n", DEVICE_DRIVER_NAME, queueSynchronizerID);
+    printk("'%s': 'TMS_open' function is been called with minor number %d!\n", DEVICE_DRIVER_NAME, queueID);
 
-    epoch = readLockRCUGettingEpoch(RBTreeSynchronizer);
-    queueSynchronizer = (RCUSynchronizer *) searchRBTree(RBTreeSynchronizer->RCUProtectedDataStructure, queueSynchronizerID);
-    readUnlockRCU(RBTreeSynchronizer, epoch);
+    queueSynchronizer = getQueueRCUSynchronizer(RBTreeSynchronizer, queueID);
 
     if (queueSynchronizer == NULL) {
 
         writeLockRCU(RBTreeSynchronizer);
 
-        queueSynchronizer = allocateSemiLockFreeQueueSynchronizer();
-        insertRBTree(RBTreeSynchronizer.RCUProtectedDataStructure, queueID);
-        // TODO RCU...
-        writeUnlockRCU()
+        queueSynchronizer = getQueueRCUSynchronizer(RBTreeSynchronizer, queueID);
+        if (queueSynchronizer != NULL)
+            return SUCCESS;
+        else {
 
+            RBTree *newRBTree;
+            RBTree *oldRBTree;
+
+            queueSynchronizer = allocateNewQueueRCUSynchronizer();
+
+            oldRBTree = RBTreeSynchronizer->RCUProtectedDataStructure;
+            newRBTree = copyRBTree(oldRBTree);
+
+            insertRBTree(newRBTree, queueID, queueSynchronizer);
+
+            writeUnlockRCU();
+
+            freeRBTree(oldRBTree);
+        }
     }
 
-    return 0;
+    return SUCCESS;
 }
 
 static ssize_t TMS_read(struct file *file, char *userBuffer, size_t size, loff_t *offset) {

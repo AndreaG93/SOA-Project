@@ -1,5 +1,7 @@
 #include "SemiLockFreeQueue.h"
 #include "../BasicOperations/BasicDefines.h"
+#include "../BasicOperations/SynchronizationPrimitives.h"
+
 #include <linux/slab.h>
 #include <linux/kobject.h>
 
@@ -66,24 +68,25 @@ void freeSemiLockFreeQueue(SemiLockFreeQueue *queue) {
     free(queue);
 }
 
-int enqueue(SemiLockFreeQueue *queue, void *data) {
+unsigned char enqueue(SemiLockFreeQueue *queue, void *data) {
 
     SemiLockFreeQueueNode *actualTail;
     SemiLockFreeQueueNode *newNode = allocateSemiLockFreeQueueNode(data);
 
-    unsigned long currentUsedStorage = __sync_add_and_fetch(&queue->currentUsedStorage, 1);
+    unsigned long currentUsedStorage = ADD_AND_FETCH(&queue->currentUsedStorage, 1);
     if (currentUsedStorage > queue->maxStorageSize) {
-        __sync_sub_and_fetch(&queue->currentUsedStorage, 1);
+        SUB_AND_FETCH(&queue->currentUsedStorage, 1);
         return FAILURE;
     }
 
-    do {
+    while (TRUE) {
+
         actualTail = queue->tail;
         if (__sync_bool_compare_and_swap(&queue->tail, actualTail, newNode)) {
             actualTail->next = newNode;
             break;
         }
-    } while (1);
+    }
 
     return SUCCESS;
 }
@@ -93,15 +96,15 @@ void *dequeue(SemiLockFreeQueue *queue) {
     SemiLockFreeQueueNode *actualHead;
     void *output = NULL;
 
-    unsigned long currentUsedStorage = __sync_sub_and_fetch(&queue->currentUsedStorage, 1);
+    unsigned long currentUsedStorage = SUB_AND_FETCH(&queue->currentUsedStorage, 1);
     if (currentUsedStorage < 0) {
-        __sync_add_and_fetch(&queue->currentUsedStorage, 1);
+        ADD_AND_FETCH(&queue->currentUsedStorage, 1);
         return NULL;
     }
 
     do {
         actualHead = queue->head;
-    } while (actualHead == NULL || !__sync_bool_compare_and_swap(&queue->head, actualHead, NULL));
+    } while (actualHead == NULL || !COMPARE_AND_SWAP(&queue->head, actualHead, NULL));
 
     if (actualHead->next == NULL) {
         queue->head = actualHead;

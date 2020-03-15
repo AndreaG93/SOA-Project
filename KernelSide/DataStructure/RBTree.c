@@ -107,5 +107,17 @@ RBTree *copyRBTree(RBTree *input) {
 }
 
 void freeRBTree(RBTree *input) {
-    return; // TODO
+
+    struct rb_node *currentNode;
+    struct rb_node *nextNode;
+
+    for (currentNode = rb_first(input); currentNode; ) {
+
+        nextNode = rb_next(currentNode);
+        kfree(currentNode);
+        currentNode = nextNode;
+
+    }
+
+    kfree(input);
 }

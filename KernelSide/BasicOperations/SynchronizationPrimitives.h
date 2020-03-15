@@ -1,5 +1,7 @@
 #pragma once
 
-#define COMPARE_AND_SWAP(dataPointer, expectedValue, desiredValue) __atomic_compare_exchange_n(dataPointer, expectedValue, desiredValue, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST)
+#define COMPARE_AND_SWAP(dataPointer, expectedValue, desiredValue) __sync_bool_compare_and_swap(dataPointer, expectedValue, desiredValue)
 
-#define FETCH_AND_ADD(dataPointer, value) __atomic_fetch_add(dataPointer, value, __ATOMIC_SEQ_CST)
+#define ADD_AND_FETCH(dataPointer, value) __sync_add_and_fetch(dataPointer, value);
+
+#define SUB_AND_FETCH(dataPointer, value) __sync_sub_and_fetch(dataPointer, value);

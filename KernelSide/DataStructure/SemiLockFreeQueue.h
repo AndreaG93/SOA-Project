@@ -16,7 +16,7 @@ typedef struct {
 
 SemiLockFreeQueue *allocateSemiLockFreeQueue(long maxMessageSize, long maxStorageSize, struct kobject *kObject);
 
-int enqueue(SemiLockFreeQueue *input, void *data);
+unsigned char enqueue(SemiLockFreeQueue *input, void *data);
 
 void *dequeue(SemiLockFreeQueue *input);
 
