@@ -55,17 +55,18 @@ SemiLockFreeQueue *allocateSemiLockFreeQueue(long maxMessageSize, long maxStorag
 
 void freeSemiLockFreeQueue(SemiLockFreeQueue *queue, void (*dataFreeFunction)(void *)) {
 
+    SemiLockFreeQueueNode *currentNode;
     SemiLockFreeQueueNode *nextNode;
 
-    while (queue->head != NULL) {
+    for (currentNode = queue->head; currentNode != NULL;) {
 
-        nextNode = ((SemiLockFreeQueueNode *) queue->head)->next;
+        nextNode = currentNode->next;
 
-        if (((SemiLockFreeQueueNode *) queue->head)->data != NULL)
-            (*dataFreeFunction)(((SemiLockFreeQueueNode *) queue->head)->data);
+        if (currentNode->data != NULL)
+            (*dataFreeFunction)(currentNode->data);
 
-        kfree(queue->head);
-        queue->head = nextNode;
+        kfree(currentNode);
+        currentNode = nextNode;
     }
 
     kfree(queue);
@@ -117,6 +118,7 @@ void *dequeue(SemiLockFreeQueue *queue) {
     }
 
     output = ((SemiLockFreeQueueNode *) actualHead->next)->data;
+    ((SemiLockFreeQueueNode *) actualHead->next)->data = NULL;
     queue->head = actualHead->next;
     kfree(actualHead);
 

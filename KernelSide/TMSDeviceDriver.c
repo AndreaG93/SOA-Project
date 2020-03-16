@@ -211,7 +211,7 @@ static int TMS_release(struct inode *inode, struct file *file) {
 
 
 static int TMS_flush(struct file *file, fl_owner_t id) {
-/*
+
     SemiLockFreeQueue *oldQueue;
     SemiLockFreeQueue *newQueue;
     RCUSynchronizer *queueSynchronizer;
@@ -231,7 +231,7 @@ static int TMS_flush(struct file *file, fl_owner_t id) {
     writeUnlockRCU(queueSynchronizer, newQueue);
 
     freeSemiLockFreeQueue(oldQueue, &fullyRemoveMessage);
-*/
+
     return 0;
 }
 
