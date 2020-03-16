@@ -38,6 +38,8 @@ SemiLockFreeQueue *allocateSemiLockFreeQueue(long maxMessageSize, long maxStorag
 
             output->head = dummyNode;
             output->tail = dummyNode;
+            output->maxMessageSize = maxMessageSize;
+            output->maxStorageSize = maxStorageSize;
             output->kObject = kObject;
 
         } else {
