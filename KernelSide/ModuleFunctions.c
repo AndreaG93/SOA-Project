@@ -1,6 +1,9 @@
 #include <linux/slab.h>
+#include <linux/kobject.h>
+#include <linux/sysfs.h>
 
 #include "ModuleFunctions.h"
+#include "Common/BasicOperations.h"
 #include "Common/BasicDefines.h"
 #include "Common/KObjectManagement.h"
 #include "DataStructure/RBTree.h"
@@ -8,14 +11,13 @@
 #include "DataStructure/SemiLockFreeQueue.h"
 #include "DataStructure/Message.h"
 
+
 struct sysfs_ops *
 allocateAndInitializeSysFileSystemOperation(ssize_t (*show)(struct kobject *, struct attribute *, char *),
                                             ssize_t (*store)(struct kobject *, struct attribute *, const char *,
                                                              size_t)) {
 
-    struct sysfs_ops *output;
-
-    output = kmalloc(sizeof(struct sysfs_ops), GFP_KERNEL);
+    struct sysfs_ops *output = kmalloc(sizeof(struct sysfs_ops), GFP_KERNEL);
     if (output != NULL) {
 
         output->show = show;
@@ -25,16 +27,17 @@ allocateAndInitializeSysFileSystemOperation(ssize_t (*show)(struct kobject *, st
     return output;
 }
 
-struct kobject *allocateSemiLockFreeQueueKObject(unsigned long queueID,
-                                                 ssize_t (*show)(struct kobject *, struct attribute *, char *),
-                                                 ssize_t (*store)(struct kobject *, struct attribute *, const char *size_t)) {
+struct kobject *
+allocateSemiLockFreeQueueKObject(unsigned long queueID, struct kobject * kObjectParent, ssize_t (*show)(struct kobject *, struct attribute *, char *),
+                                 ssize_t (*store)(struct kobject *, struct attribute *, const char *, size_t)) {
 
     char *kObjectName;
     struct kobject *kObject;
     struct kobj_type *kType;
     const struct attribute_group **attributesGroups;
+    struct sysfs_ops *sysFSOperations;
 
-    kObjectName = convertIntToString(id);
+    kObjectName = convertIntToString(queueID);
 
     kObject = kobject_create_and_add(kObjectName, kObjectParent);
     if (kObject == NULL)
@@ -65,7 +68,7 @@ struct kobject *allocateSemiLockFreeQueueKObject(unsigned long queueID,
     sysFSOperations = allocateAndInitializeSysFileSystemOperation(show, store);
     if (sysFSOperations == NULL) {
 
-        freeAttributeGroup(attributesGroups[0], 2)
+        freeAttributeGroup(attributesGroups[0], 2);
         kobject_put(kObject);
         kfree(kObject);
         kfree(kType);
@@ -93,15 +96,15 @@ RCUSynchronizer *getQueueRCUSynchronizer(RCUSynchronizer *RBTreeSynchronizer, un
 }
 
 RCUSynchronizer *
-allocateNewQueueRCUSynchronizer(unsigned long queueID,
+allocateNewQueueRCUSynchronizer(unsigned long queueID, struct kobject * kObjectParent,
                                 ssize_t (*show)(struct kobject *, struct attribute *, char *),
-                                ssize_t (*store)(struct kobject *, struct attribute *, const char *size_t)) {
+                                ssize_t (*store)(struct kobject *, struct attribute *, const char *, size_t)) {
 
     RCUSynchronizer *output;
     SemiLockFreeQueue *outputQueue;
     struct kobject *kObject;
 
-    kObject = allocateSemiLockFreeQueueKObject(queueID, show, store);
+    kObject = allocateSemiLockFreeQueueKObject(queueID, kObjectParent, show, store);
     if (kObject == NULL)
         return NULL;
 

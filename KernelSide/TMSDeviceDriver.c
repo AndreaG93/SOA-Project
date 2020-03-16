@@ -16,10 +16,8 @@
 #include "DataStructure/Message.h"
 
 #include "ModuleFunctions.h"
-#include "TMSDeviceDriver.h"
-#include "Common/KObjectManagement.h"
 
-static RCUSynchronizer* RBTreeSynchronizer;
+static RCUSynchronizer *RBTreeSynchronizer;
 static int majorNumber;
 static struct kobject *kObjectParent;
 
@@ -33,7 +31,8 @@ static ssize_t TMS_show(struct kobject *kobj, struct attribute *attr, char *buf)
 
     queueID = stringToLong(kobj->name);
 
-    printk("'%s': 'TMS_show' function is been called managing 'SemiLockFreeQueue' with index %d!\n", MODULE_NAME, queueID);
+    printk("'%s': 'TMS_show' function is been called managing 'SemiLockFreeQueue' with index %d!\n", MODULE_NAME,
+           queueID);
 
     queueSynchronizer = getQueueRCUSynchronizer(RBTreeSynchronizer, queueID);
 
@@ -41,10 +40,12 @@ static ssize_t TMS_show(struct kobject *kobj, struct attribute *attr, char *buf)
 
     queue = (SemiLockFreeQueue *) queueSynchronizer->RCUProtectedDataStructure;
 
-    if (strcmp(attr->name, "max_message_size") == 0)
+    if (strcmp(attr->name, "max_message_size") == 0) {
         output = sprintf(buf, "%ld\n", queue->maxMessageSize);
-    else
+    }
+    else {
         output = sprintf(buf, "%ld\n", queue->maxStorageSize);
+    }
 
     readUnlockRCU(queueSynchronizer, epoch);
 
@@ -59,7 +60,8 @@ static ssize_t TMS_store(struct kobject *kobj, struct attribute *attr, const cha
 
     queueID = stringToLong(kobj->name);
 
-    printk("'%s': 'TMS_store' function is been called managing 'SemiLockFreeQueue' with index %d!\n", MODULE_NAME, queueID);
+    printk("'%s': 'TMS_store' function is been called managing 'SemiLockFreeQueue' with index %d!\n", MODULE_NAME,
+           queueID);
 
     queueSynchronizer = getQueueRCUSynchronizer(RBTreeSynchronizer, queueID);
 
@@ -67,13 +69,17 @@ static ssize_t TMS_store(struct kobject *kobj, struct attribute *attr, const cha
 
     queue = (SemiLockFreeQueue *) queueSynchronizer->RCUProtectedDataStructure;
 
-    if (strcmp(attr->name, "max_message_size") == 0)
+    if (strcmp(attr->name, "max_message_size") == 0) {
         sscanf(buf, "%ldu", &(queue->maxMessageSize));
-    else
+    }
+    else {
         sscanf(buf, "%ldu", &(queue->maxStorageSize));
+    }
 
-    printk("'%s': 'maxMessageSize' variable of 'SemiLockFreeQueue' with index %d is now %ld!\n", MODULE_NAME, queueID, queue->maxMessageSize);
-    printk("'%s': 'maxStorageSize' variable of 'SemiLockFreeQueue' with index %d is now %ld!\n", MODULE_NAME, queueID, queue->maxStorageSize);
+    printk("'%s': 'maxMessageSize' variable of 'SemiLockFreeQueue' with index %d is now %ld!\n", MODULE_NAME, queueID,
+           queue->maxMessageSize);
+    printk("'%s': 'maxStorageSize' variable of 'SemiLockFreeQueue' with index %d is now %ld!\n", MODULE_NAME, queueID,
+           queue->maxStorageSize);
 
     writeUnlockRCU(queueSynchronizer, queueSynchronizer->RCUProtectedDataStructure);
 
@@ -106,7 +112,7 @@ static int TMS_open(struct inode *inode, struct file *file) {
             RBTree *newRBTree;
             RBTree *oldRBTree;
 
-            queueSynchronizer = allocateNewQueueRCUSynchronizer(queueID, &TMS_show, &TMS_store);
+            queueSynchronizer = allocateNewQueueRCUSynchronizer(queueID, kObjectParent, &TMS_show, &TMS_store);
 
             oldRBTree = RBTreeSynchronizer->RCUProtectedDataStructure;
             newRBTree = copyRBTree(oldRBTree);
@@ -152,8 +158,9 @@ static ssize_t TMS_read(struct file *file, char *userBuffer, size_t userBufferSi
     freeMessage(message);
     readUnlockRCU(queueSynchronizer, epoch);
 
-    if (output == FAILURE)
+    if (output == FAILURE) {
         return -FAILURE;
+    }
 
     return SUCCESS;
 }
@@ -247,7 +254,7 @@ int registerTMSDeviceDriver(void) {
 
     } else {
 
-        RBTree * rbTree = allocateRBTree();
+        RBTree *rbTree = allocateRBTree();
         if (rbTree == NULL) {
 
             printk("'%s': 'rbTree' allocation failed!\n", MODULE_NAME);
