@@ -6,17 +6,6 @@
 #include "KObjectManagement.h"
 #include "ModuleMetadata.h"
 
-void freeKObject(struct kobject *input, unsigned long attributeGroupSize) {
-
-    freeAttributeGroup(input->ktype->default_groups[0], attributeGroupSize);
-
-    kfree(input->ktype->sysfs_ops);
-    kfree(input->ktype);
-    kfree(input->name);
-
-    kfree(input);
-}
-
 void removeAttributeGroupSysFiles(struct kobject *parentKObject, const struct attribute_group *attributeGroup, unsigned long attributeGroupSize) {
 
     unsigned long currentAttributeIndex = 0;
@@ -101,11 +90,17 @@ void createAttributeGroupSysFiles(struct kobject *parentKObject, unsigned long a
         sysfs_create_file(parentKObject, *(attributeGroup->attrs + currentAttributeIndex));
 }
 
-void removeKObjectFromSystem(struct kobject *input, unsigned long attributeGroupSize) {
+void freeKObjectRemovingFromSystem(struct kobject *input, unsigned long attributeGroupSize) {
 
     removeAttributeGroupSysFiles(input, input->ktype->default_groups[0], attributeGroupSize);
     kobject_put(input);
 
     freeAttributeGroup(input->ktype->default_groups[0], attributeGroupSize);
-    freeKObject(input, attributeGroupSize);
+
+    kfree(input->ktype->default_groups);
+    kfree(input->ktype->sysfs_ops);
+    kfree(input->ktype);
+    kfree(input->name);
+
+    kfree(input);
 }

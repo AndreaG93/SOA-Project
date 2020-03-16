@@ -8,4 +8,4 @@ void createAttributeGroupSysFiles(struct kobject *parentKObject, unsigned long a
 
 void freeAttributeGroup(const struct attribute_group *input, unsigned long attributeGroupSize);
 
-void removeKObjectFromSystem(struct kobject *input, unsigned long attributeGroupSize);
+void freeKObjectRemovingFromSystem(struct kobject *input, unsigned long attributeGroupSize);

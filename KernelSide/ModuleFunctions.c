@@ -129,6 +129,8 @@ void fullyRemoveQueue(void *input) {
     SemiLockFreeQueue *queue;
 
     queue = (SemiLockFreeQueue *) input;
+
+    freeKObjectRemovingFromSystem(queue->kObject, 2);
     freeSemiLockFreeQueue(queue, &fullyRemoveMessage);
 }
 
