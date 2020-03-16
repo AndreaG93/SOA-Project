@@ -1,31 +1,40 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <errno.h>
 #include <string.h>
 #include <stdlib.h>
-
-// Remember to call: mknod /dev/TMS1 c 238 0
-
+#include <errno.h>
 
 void readTest() {
 
-    int fileDescriptor;
-    char buffer[6];
+    char *inputMessageBuffer = calloc(30, sizeof(char));
+    if (inputMessageBuffer == NULL)
+        exit(EXIT_FAILURE);
+
+    char *outputMessageBuffer = calloc(30, sizeof(char));
+    if (outputMessageBuffer == NULL)
+        exit(EXIT_FAILURE);
+
+    strcpy(inputMessageBuffer, "Andrea");
 
     errno = 0;
-    int fileDescriptor1 = open("/dev/TMS1", O_RDONLY);
-    int fileDescriptor2 = open("/dev/TMS2", O_RDONLY);
+    int fileDescriptor = open("/dev/TMS1", O_RDWR);
+    if (fileDescriptor == -1) {
 
-    /*
-    if (read(fileDescriptor, buffer,6) < 0) {
         fprintf(stderr, "[ERROR] %s", strerror(errno));
         exit(EXIT_FAILURE);
-    } else
-        fprintf(stdout, "Value Read: %s\n", buffer);
-*/
+    }
 
+    if (write(fileDescriptor, inputMessageBuffer, 30) == -1)
+        exit(EXIT_FAILURE);
 
-    close(fileDescriptor1);
-    close(fileDescriptor2);
+    if (read(fileDescriptor, outputMessageBuffer, 30) == -1)
+        exit(EXIT_FAILURE);
+
+    fprintf(stderr, "Message read: %s\n", outputMessageBuffer);
+
+    free(inputMessageBuffer);
+    free(outputMessageBuffer);
+
+    close(fileDescriptor);
 }
