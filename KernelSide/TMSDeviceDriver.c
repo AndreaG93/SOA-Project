@@ -153,14 +153,15 @@ static ssize_t TMS_read(struct file *file, char *userBuffer, size_t userBufferSi
 
     message = dequeue(queue);
 
+    printk("'%s': message stored! -> size: %lu -> content: %s\n", MODULE_NAME, message->size, (char *) message->content);
+
     output = copyMessageToUserBuffer(message, userBuffer, userBufferSize);
 
     freeMessage(message);
     readUnlockRCU(queueSynchronizer, epoch);
 
-    if (output == FAILURE) {
+    if (output == FAILURE)
         return -FAILURE;
-    }
 
     return SUCCESS;
 }
@@ -191,6 +192,9 @@ static ssize_t TMS_write(struct file *file, const char *userBuffer, size_t userB
     } else {
 
         message = createMessageFromUserBuffer(userBuffer, userBufferSize);
+
+        printk("'%s': message created! -> size: %lu -> content: %s\n", MODULE_NAME, message->size, (char *) message->content);
+
         enqueue(queue, message);
         readUnlockRCU(queueSynchronizer, epoch);
     }
@@ -207,7 +211,7 @@ static int TMS_release(struct inode *inode, struct file *file) {
 
 
 static int TMS_flush(struct file *file, fl_owner_t id) {
-
+/*
     SemiLockFreeQueue *oldQueue;
     SemiLockFreeQueue *newQueue;
     RCUSynchronizer *queueSynchronizer;
@@ -227,7 +231,7 @@ static int TMS_flush(struct file *file, fl_owner_t id) {
     writeUnlockRCU(queueSynchronizer, newQueue);
 
     freeSemiLockFreeQueue(oldQueue, &fullyRemoveMessage);
-
+*/
     return 0;
 }
 

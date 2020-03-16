@@ -35,9 +35,9 @@ int copyMessageToUserBuffer(Message *input, void *userBuffer, size_t userBufferS
     unsigned long byteNotCopied;
 
     if (userBufferSize >= input->size)
-        byteNotCopied = copy_to_user(input->content, userBuffer, input->size);
+        byteNotCopied = copy_to_user(userBuffer, input->content, input->size);
     else
-        byteNotCopied = copy_to_user(input->content, userBuffer, userBufferSize);
+        byteNotCopied = copy_to_user(userBuffer, input->content, userBufferSize);
 
     if (byteNotCopied != 0)
         return FAILURE;

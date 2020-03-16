@@ -56,7 +56,6 @@ allocateSemiLockFreeQueueKObject(unsigned long queueID, struct kobject *kObjectP
         return NULL;
     }
 
-
     attributes[0] = &(kObjectAttribute1->attr);
     attributes[1] = &(kObjectAttribute2->attr);
     attributes[2] = NULL;

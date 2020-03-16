@@ -1,5 +1,6 @@
 #include "SemiLockFreeQueue.h"
 #include "../Common/BasicDefines.h"
+#include "../Common/ModuleMetadata.h"
 #include "../Common/SynchronizationPrimitives.h"
 
 #include <linux/slab.h>
@@ -90,6 +91,8 @@ unsigned char enqueue(SemiLockFreeQueue *queue, void *data) {
         }
     }
 
+    printk("'%s': 'SemiLockFreeQueue': current messages: %ld!\n", MODULE_NAME, queue->currentUsedStorage);
+
     return SUCCESS;
 }
 
@@ -116,6 +119,8 @@ void *dequeue(SemiLockFreeQueue *queue) {
     output = ((SemiLockFreeQueueNode *) actualHead->next)->data;
     queue->head = actualHead->next;
     kfree(actualHead);
+
+    printk("'%s': 'SemiLockFreeQueue': current messages: %ld!\n", MODULE_NAME, queue->currentUsedStorage);
 
     return output;
 }
