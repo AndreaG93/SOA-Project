@@ -92,9 +92,10 @@ void createAttributeGroupSysFiles(struct kobject *parentKObject, unsigned long a
 
 void freeKObjectRemovingFromSystem(struct kobject *input, unsigned long attributeGroupSize) {
 
-    removeAttributeGroupSysFiles(input, input->ktype->default_groups[0], attributeGroupSize);
+    //removeAttributeGroupSysFiles(input, input->ktype->default_groups[0], attributeGroupSize);
     kobject_put(input);
 
+    /*
     freeAttributeGroup(input->ktype->default_groups[0], attributeGroupSize);
 
     kfree(input->ktype->default_groups);
@@ -103,4 +104,5 @@ void freeKObjectRemovingFromSystem(struct kobject *input, unsigned long attribut
     kfree(input->name);
 
     kfree(input);
+     */
 }

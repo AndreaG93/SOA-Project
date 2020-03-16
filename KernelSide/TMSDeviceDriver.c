@@ -21,7 +21,7 @@ static RCUSynchronizer *RBTreeSynchronizer;
 static int majorNumber;
 static struct kobject *kObjectParent;
 
-static ssize_t TMS_show(struct kobject *kobj, struct attribute *attr, char *buf) {
+static ssize_t TMS_show(struct kobject *kobj, struct kobj_attribute *kObjAttribute, char *buf) {
 
     SemiLockFreeQueue *queue;
     RCUSynchronizer *queueSynchronizer;
@@ -40,7 +40,7 @@ static ssize_t TMS_show(struct kobject *kobj, struct attribute *attr, char *buf)
 
     queue = (SemiLockFreeQueue *) queueSynchronizer->RCUProtectedDataStructure;
 
-    if (strcmp(attr->name, "max_message_size") == 0) {
+    if (strcmp(kObjAttribute->attr.name, "max_message_size") == 0) {
         output = sprintf(buf, "%ld\n", queue->maxMessageSize);
     }
     else {
@@ -52,7 +52,7 @@ static ssize_t TMS_show(struct kobject *kobj, struct attribute *attr, char *buf)
     return output;
 }
 
-static ssize_t TMS_store(struct kobject *kobj, struct attribute *attr, const char *buf, size_t count) {
+static ssize_t TMS_store(struct kobject *kobj, struct kobj_attribute *kObjAttribute, const char *buf, size_t count) {
 
     SemiLockFreeQueue *queue;
     RCUSynchronizer *queueSynchronizer;
@@ -69,7 +69,7 @@ static ssize_t TMS_store(struct kobject *kobj, struct attribute *attr, const cha
 
     queue = (SemiLockFreeQueue *) queueSynchronizer->RCUProtectedDataStructure;
 
-    if (strcmp(attr->name, "max_message_size") == 0) {
+    if (strcmp(kObjAttribute->attr.name, "max_message_size") == 0) {
         sscanf(buf, "%ldu", &(queue->maxMessageSize));
     }
     else {
