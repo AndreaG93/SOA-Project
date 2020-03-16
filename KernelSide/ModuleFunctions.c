@@ -3,9 +3,10 @@
 #include <linux/sysfs.h>
 
 #include "ModuleFunctions.h"
+
 #include "Common/BasicOperations.h"
 #include "Common/BasicDefines.h"
-#include "Common/KObjectManagement.h"
+
 #include "DataStructure/RBTree.h"
 #include "DataStructure/RCUSynchronizer.h"
 #include "DataStructure/SemiLockFreeQueue.h"
@@ -17,6 +18,7 @@ allocateSemiLockFreeQueueKObject(unsigned long queueID, struct kobject *kObjectP
                                  ssize_t (*store)(struct kobject *, struct kobj_attribute *, const char *, size_t)) {
 
     struct kobject *kObject;
+
     struct attribute_group *attributeGroup;
     struct attribute **attributes;
 
@@ -59,7 +61,6 @@ allocateSemiLockFreeQueueKObject(unsigned long queueID, struct kobject *kObjectP
     attributes[1] = &(kObjectAttribute2->attr);
     attributes[2] = NULL;
 
-
     attributeGroup = kmalloc(sizeof(struct attribute_group), GFP_KERNEL);
     if (attributeGroup == NULL) {
 
@@ -86,10 +87,8 @@ allocateSemiLockFreeQueueKObject(unsigned long queueID, struct kobject *kObjectP
     if (sysfs_create_group(kObject, attributeGroup) != 0) {
 
         kobject_put(kObject);
-
         return NULL;
     }
-
 
     return kObject;
 }
@@ -144,7 +143,7 @@ void fullyRemoveQueue(void *input) {
 
     queue = (SemiLockFreeQueue *) input;
 
-    freeKObjectRemovingFromSystem(queue->kObject, 2);
+    kobject_put(queue->kObject);
     freeSemiLockFreeQueue(queue, &fullyRemoveMessage);
 }
 
