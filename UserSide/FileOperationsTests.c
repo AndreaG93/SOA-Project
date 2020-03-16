@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <sys/ioctl.h>
 
 void readTest() {
 
@@ -15,11 +16,16 @@ void readTest() {
     if (outputMessageBuffer == NULL)
         exit(EXIT_FAILURE);
 
-
-
     errno = 0;
     int fileDescriptor = open("/dev/TMS1", O_RDWR);
     if (fileDescriptor == -1) {
+
+        fprintf(stderr, "[ERROR] %s", strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+
+    errno = 0;
+    if (ioctl(fileDescriptor, 7, 1) != 0){
 
         fprintf(stderr, "[ERROR] %s", strerror(errno));
         exit(EXIT_FAILURE);
@@ -32,7 +38,6 @@ void readTest() {
     strcpy(inputMessageBuffer, "Andrea");
     if (write(fileDescriptor, inputMessageBuffer, 30) == -1)
         exit(EXIT_FAILURE);
-
 
     if (read(fileDescriptor, outputMessageBuffer, 30) == -1)
         exit(EXIT_FAILURE);

@@ -119,10 +119,6 @@ static int TMS_open(struct inode *inode, struct file *file) {
 
             insertRBTree(newRBTree, queueID, queueSynchronizer);
 
-#ifdef DEBUG
-            traverseRBTree(newRBTree);
-#endif
-
             writeUnlockRCU(RBTreeSynchronizer, newRBTree);
 
             freeRBTreeContentExcluded(oldRBTree);
@@ -152,8 +148,6 @@ static ssize_t TMS_read(struct file *file, char *userBuffer, size_t userBufferSi
     queue = (SemiLockFreeQueue *) queueSynchronizer->RCUProtectedDataStructure;
 
     message = dequeue(queue);
-
-    printk("'%s': message stored! -> size: %lu -> content: %s\n", MODULE_NAME, message->size, (char *) message->content);
 
     output = copyMessageToUserBuffer(message, userBuffer, userBufferSize);
 
@@ -193,8 +187,6 @@ static ssize_t TMS_write(struct file *file, const char *userBuffer, size_t userB
 
         message = createMessageFromUserBuffer(userBuffer, userBufferSize);
 
-        printk("'%s': message created! -> size: %lu -> content: %s\n", MODULE_NAME, message->size, (char *) message->content);
-
         enqueue(queue, message);
         readUnlockRCU(queueSynchronizer, epoch);
     }
@@ -232,11 +224,35 @@ static int TMS_flush(struct file *file, fl_owner_t id) {
 
     freeSemiLockFreeQueue(oldQueue, &fullyRemoveMessage);
 
-    return 0;
+    return SUCCESS;
 }
 
-static long TMS_unlocked_ioctl(struct file *file, unsigned int x, unsigned long y) {
-    return 1;
+static long TMS_unlocked_ioctl(struct file *file, unsigned int command, unsigned long parameter) {
+
+    int queueID;
+
+    queueID = iminor(file->f_inode);
+
+    printk("'%s': 'TMS_unlocked_ioctl' function is been called with minor number %d\n", MODULE_NAME, queueID);
+
+    switch (command) {
+
+        case SET_SEND_TIMEOUT:
+            printk("'%s': 'SET_SEND_TIMEOUT' command received with parameter: %ld\n", MODULE_NAME, parameter);
+            break;
+
+        case SET_RECV_TIMEOUT:
+            printk("'%s': 'SET_RECV_TIMEOUT' command received with parameter: %ld\n", MODULE_NAME, parameter);
+            break;
+
+        case REVOKE_DELAYED_MESSAGES:
+            printk("'%s': 'REVOKE_DELAYED_MESSAGES' command received with parameter: %ld\n", MODULE_NAME, parameter);
+            break;
+        default:
+            break;
+    }
+
+    return SUCCESS;
 }
 
 static struct file_operations TMSOperation = {
