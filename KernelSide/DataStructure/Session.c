@@ -24,10 +24,10 @@ Session* allocateSession(RCUSynchronizer *queueSynchronizer) {
 
 void revokeDelayedMessage(void *input) {
 
-    struct delayed_work* delayedWork;
+    //struct delayed_work* delayedWork;
 
-    cancel_delayed_work_sync(delayedWork);
-    kfree(delayedWork);
+    //cancel_delayed_work_sync(delayedWork);
+    //kfree(delayedWork);
 }
 
 void revokeDelayedMessages(Session *input) {

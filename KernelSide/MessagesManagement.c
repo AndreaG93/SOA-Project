@@ -6,6 +6,8 @@
 #include "DataStructure/Message.h"
 #include "DataStructure/SemiLockFreeQueue.h"
 
+#include <linux/workqueue.h>
+
 unsigned int enqueueMessage(RCUSynchronizer* queueSynchronizer, const char *userBuffer, size_t userBufferSize) {
 
     Message *message;
@@ -33,7 +35,7 @@ unsigned int enqueueMessage(RCUSynchronizer* queueSynchronizer, const char *user
     return output;
 }
 
-unsigned int dequeueMessage(RCUSynchronizer* queueSynchronizer, const char *userBuffer, size_t userBufferSize) {
+unsigned int dequeueMessage(RCUSynchronizer* queueSynchronizer, void *userBuffer, size_t userBufferSize) {
 
     Message *message;
     SemiLockFreeQueue *queue;
@@ -53,4 +55,15 @@ unsigned int dequeueMessage(RCUSynchronizer* queueSynchronizer, const char *user
     readUnlockRCU(queueSynchronizer, epoch);
 
     return output;
+}
+
+void enqueueMessageDelayed(struct work_struct *input) {
+
+    struct delayed_work *delayedWork;
+    DelayedEnqueueMessageOperation *operation;
+
+    delayedWork = container_of(input, struct delayed_work, work);
+    operation = container_of(delayedWork, DelayedEnqueueMessageOperation, work);
+
+    enqueueMessage(operation->queueSynchronizer, operation->userBuffer, operation->userBufferSize);
 }

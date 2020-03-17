@@ -8,6 +8,7 @@
 
 void readTest() {
 
+    /*
     char *inputMessageBuffer = calloc(30, sizeof(char));
     if (inputMessageBuffer == NULL)
         exit(EXIT_FAILURE);
@@ -15,6 +16,7 @@ void readTest() {
     char *outputMessageBuffer = calloc(30, sizeof(char));
     if (outputMessageBuffer == NULL)
         exit(EXIT_FAILURE);
+*/
 
     errno = 0;
     int fileDescriptor = open("/dev/TMS1", O_RDWR);
@@ -22,10 +24,32 @@ void readTest() {
 
         fprintf(stderr, "[ERROR] %s", strerror(errno));
         exit(EXIT_FAILURE);
+
     }
 
+
+    int newProcess = fork();
+
+
+    if (newProcess == 0) {
+
+
+        ioctl(fileDescriptor, 1, 1);
+        fprintf(stderr, "URRA...");
+        close(fileDescriptor);
+        return;
+    }
+
+    fprintf(stderr, "Entro...");
+    sleep(1);
+    fprintf(stderr, "Esco\n...");
+
+    write(fileDescriptor, NULL, 1);
+    close(fileDescriptor);
+    return;
+    /*
     errno = 0;
-    if (ioctl(fileDescriptor, 7, 0) != 0){
+    if (ioctl(fileDescriptor, 5, 1000) != 0){
 
         fprintf(stderr, "[ERROR] %s", strerror(errno));
         exit(EXIT_FAILURE);
@@ -51,6 +75,6 @@ void readTest() {
 
     free(inputMessageBuffer);
     free(outputMessageBuffer);
+*/
 
-    close(fileDescriptor);
 }

@@ -6,6 +6,7 @@
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
 #include <linux/workqueue.h>
+#include <linux/wait.h>
 
 #include "Common/BasicDefines.h"
 #include "Common/ModuleMetadata.h"
@@ -24,8 +25,10 @@ static RCUSynchronizer *RBTreeSynchronizer;
 static int majorNumber;
 static struct kobject *kObjectParent;
 
-//struct work_struct work;
-//struct delayed_work delayedWork;
+struct wait_queue_entry *entry;
+struct wait_queue_head *head;
+
+static char flag;
 
 static ssize_t TMS_show(struct kobject *kobj, struct kobj_attribute *kObjAttribute, char *buf) {
 
@@ -92,6 +95,7 @@ static ssize_t TMS_store(struct kobject *kobj, struct kobj_attribute *kObjAttrib
 
 static int TMS_open(struct inode *inode, struct file *file) {
 
+    /*
     RCUSynchronizer *queueSynchronizer;
     int queueID;
 
@@ -124,6 +128,8 @@ static int TMS_open(struct inode *inode, struct file *file) {
     file->private_data = allocateSession(queueSynchronizer);
 
     return SUCCESS;
+     */
+    return SUCCESS;
 }
 
 static ssize_t TMS_read(struct file *file, char *userBuffer, size_t userBufferSize, loff_t *offset) {
@@ -134,8 +140,7 @@ static ssize_t TMS_read(struct file *file, char *userBuffer, size_t userBufferSi
 
     if (session->dequeueDelay > 0) {
 
-        printk("'%s': 'TMS_read' function is been called with 'SET_RECV_TIMEOUT' command (%lu)!\n", MODULE_NAME,
-               session->dequeueDelay);
+        printk("'%s': 'TMS_read' function is been called with 'SET_RECV_TIMEOUT' command (%lu)!\n", MODULE_NAME, session->dequeueDelay);
         return SUCCESS;
 
     } else {
@@ -147,14 +152,29 @@ static ssize_t TMS_read(struct file *file, char *userBuffer, size_t userBufferSi
 
 static ssize_t TMS_write(struct file *file, const char *userBuffer, size_t userBufferSize, loff_t *offset) {
 
+    remove_wait_queue(head, entry);
+    wake_up(head);
+    /*
     Session *session;
+    DelayedEnqueueMessageOperation *operation;
 
     session = (Session *) file->private_data;
 
     if (session->enqueueDelay > 0) {
 
-        printk("'%s': 'TMS_write' function is been called with 'SET_SEND_TIMEOUT' command (%lu)!\n", MODULE_NAME,
-               session->enqueueDelay);
+        printk("'%s': 'TMS_write' function is been called with 'SET_SEND_TIMEOUT' command (%lu)!\n", MODULE_NAME, session->enqueueDelay);
+
+        operation = kmalloc(sizeof(DelayedEnqueueMessageOperation), GFP_KERNEL);
+        if (operation == NULL)
+            return FAILURE;
+
+        operation->queueSynchronizer = session->queueSynchronizer;
+        operation->userBuffer = userBuffer;
+        operation->userBufferSize = userBufferSize;
+
+        INIT_DELAYED_WORK(&operation->work, enqueueMessageDelayed);
+        schedule_delayed_work(&operation->work, session->enqueueDelay);
+
         return SUCCESS;
 
     } else {
@@ -162,16 +182,20 @@ static ssize_t TMS_write(struct file *file, const char *userBuffer, size_t userB
         printk("'%s': 'TMS_write' function is been called!\n", MODULE_NAME);
         return enqueueMessage(session->queueSynchronizer, userBuffer, userBufferSize);
     }
+    */
+
+    return SUCCESS;
 }
 
 
 static int TMS_release(struct inode *inode, struct file *file) {
 
+
     printk("'%s': 'TMS_release' function is been called!\n", MODULE_NAME);
-
-    freeSession(file->private_data);
-    file->private_data = NULL;
-
+    /*
+       freeSession(file->private_data);
+       file->private_data = NULL;
+   */
     return 0;
 }
 
@@ -204,6 +228,19 @@ static int TMS_flush(struct file *file, fl_owner_t id) {
 
 static long TMS_unlocked_ioctl(struct file *file, unsigned int command, unsigned long parameter) {
 
+    init_waitqueue_head(head);
+
+    init_waitqueue_entry(entry, current);
+
+    add_wait_queue(head, entry);
+
+    flag = 'a';
+
+    printk("entro...");
+    wait_event_timeout(*head,flag=='n',3000);
+    printk("uscita...");
+
+    /*
     Session *session;
 
     printk("'%s': 'TMS_unlocked_ioctl' function is been called!\n", MODULE_NAME);
@@ -230,7 +267,7 @@ static long TMS_unlocked_ioctl(struct file *file, unsigned int command, unsigned
         default:
             return FAILURE;
     }
-
+*/
     return SUCCESS;
 }
 
@@ -243,11 +280,9 @@ static struct file_operations TMSOperation = {
         flush: TMS_flush
 };
 
-/*
-static void example(struct work_struct *input) {
-    printk("'%s': WORK QUEUE!\n", MODULE_NAME);
+void example(void) {
+    printk("'%s': WAIT WAIT WAIT!\n", MODULE_NAME);
 }
-*/
 
 int registerTMSDeviceDriver(void) {
 
@@ -276,19 +311,13 @@ int registerTMSDeviceDriver(void) {
 
         kObjectParent = kobject_create_and_add("TSM", kernel_kobj);
 
+
+        entry = kmalloc(sizeof(struct wait_queue_entry), GFP_KERNEL);
+        head = kmalloc(sizeof(struct wait_queue_head), GFP_KERNEL);
+
+
+
         printk("'%s': char device is been successfully registered with major number %d!\n", MODULE_NAME, majorNumber);
-
-
-        /*
-        INIT_WORK(&work, example);
-
-        INIT_DELAYED_WORK(&delayedWork, example);
-
-
-        schedule_work(&work);
-        schedule_delayed_work(&delayedWork, 2500);
-        cancel_delayed_work_sync(&delayedWork);
-*/
 
         return SUCCESS;
     }
