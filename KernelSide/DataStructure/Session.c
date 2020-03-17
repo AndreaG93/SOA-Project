@@ -5,7 +5,7 @@
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 
-SessionData *allocateSession() {
+Session* allocateSession(RCUSynchronizer *queueSynchronizer) {
 
     Session *output = kmalloc(sizeof(Session), GFP_KERNEL);
     if (output != NULL) {
@@ -16,6 +16,7 @@ SessionData *allocateSession() {
         output->enqueueDelay = 0;
 
         output->delayedMessages = allocateRBTree();
+        output->queueSynchronizer = queueSynchronizer;
     }
 
     return output;

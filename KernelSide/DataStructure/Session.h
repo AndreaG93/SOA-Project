@@ -7,13 +7,14 @@ typedef struct {
 
     spinlock_t spinlock;
     RBTree *delayedMessages;
+    RCUSynchronizer *queueSynchronizer;
 
     unsigned long enqueueDelay;
     unsigned long dequeueDelay;
 
 } Session;
 
-Session* allocateSession();
+Session* allocateSession(RCUSynchronizer *queueSynchronizer);
 
 void revokeDelayedMessages(Session *input);
 

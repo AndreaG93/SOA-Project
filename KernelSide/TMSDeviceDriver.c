@@ -18,6 +18,7 @@
 #include "DataStructure/Session.h"
 
 #include "ModuleFunctions.h"
+#include "MessagesManagement.h"
 
 static RCUSynchronizer *RBTreeSynchronizer;
 static int majorNumber;
@@ -93,126 +94,86 @@ static int TMS_open(struct inode *inode, struct file *file) {
 
     RCUSynchronizer *queueSynchronizer;
     int queueID;
+    RBTree *newRBTree;
+    RBTree *oldRBTree;
 
     queueID = iminor(file->f_inode);
 
     printk("'%s': 'TMS_open' function is been called with minor number %d!\n", MODULE_NAME, queueID);
 
-    file->private_data = allocateSession();
+    writeLockRCU(RBTreeSynchronizer);
 
-    queueSynchronizer = getQueueRCUSynchronizer(RBTreeSynchronizer, queueID);
-
+    queueSynchronizer = (RCUSynchronizer *) searchRBTree(RBTreeSynchronizer->RCUProtectedDataStructure, queueID);
     if (queueSynchronizer == NULL) {
 
-        writeLockRCU(RBTreeSynchronizer);
+        queueSynchronizer = allocateNewQueueRCUSynchronizer(queueID, kObjectParent, &TMS_show, &TMS_store);
 
-        queueSynchronizer = getQueueRCUSynchronizer(RBTreeSynchronizer, queueID);
-        if (queueSynchronizer != NULL) {
+        oldRBTree = RBTreeSynchronizer->RCUProtectedDataStructure;
+        newRBTree = copyRBTree(oldRBTree);
 
-            writeUnlockRCU(RBTreeSynchronizer, RBTreeSynchronizer->RCUProtectedDataStructure);
-            return SUCCESS;
-
-        } else {
-
-            RBTree *newRBTree;
-            RBTree *oldRBTree;
-
-            queueSynchronizer = allocateNewQueueRCUSynchronizer(queueID, kObjectParent, &TMS_show, &TMS_store);
-
-            oldRBTree = RBTreeSynchronizer->RCUProtectedDataStructure;
-            newRBTree = copyRBTree(oldRBTree);
-
-            insertRBTree(newRBTree, queueID, queueSynchronizer);
-
-            writeUnlockRCU(RBTreeSynchronizer, newRBTree);
-
-            freeRBTreeContentExcluded(oldRBTree);
-        }
+        insertRBTree(newRBTree, queueID, queueSynchronizer);
     }
+
+    file->private_data = allocateSession(queueSynchronizer);
+
+    writeUnlockRCU(RBTreeSynchronizer, newRBTree);
+
+    freeRBTreeContentExcluded(oldRBTree);
 
     return SUCCESS;
 }
 
 static ssize_t TMS_read(struct file *file, char *userBuffer, size_t userBufferSize, loff_t *offset) {
 
-    Message *message;
-    SemiLockFreeQueue *queue;
-    RCUSynchronizer *queueSynchronizer;
-    int queueID;
-    unsigned long epoch;
-    unsigned char output;
+    Session *session;
 
-    queueID = iminor(file->f_inode);
+    session = (Session *) file->private_data;
 
-    printk("'%s': 'TMS_read' function is been called with minor number %d!\n", MODULE_NAME, queueID);
+    if (session->dequeueDelay > 0) {
 
-    checkSessionData(file->private_data);
+        printk("'%s': 'TMS_read' function is been called with 'SET_RECV_TIMEOUT' command (%lu)!\n", MODULE_NAME,
+               session->dequeueDelay);
 
-    queueSynchronizer = getQueueRCUSynchronizer(RBTreeSynchronizer, queueID);
+    } else {
 
-    epoch = readLockRCUGettingEpoch(queueSynchronizer);
-
-    queue = (SemiLockFreeQueue *) queueSynchronizer->RCUProtectedDataStructure;
-
-    message = dequeue(queue);
-
-    output = copyMessageToUserBuffer(message, userBuffer, userBufferSize);
-
-    freeMessage(message);
-    readUnlockRCU(queueSynchronizer, epoch);
-
-    if (output == FAILURE)
-        return -FAILURE;
-
-    return SUCCESS;
+        printk("'%s': 'TMS_read' function is been called!\n", MODULE_NAME);
+        return dequeueMessage(session->queueSynchronizer, userBuffer, userBufferSize);
+    }
 }
 
 static ssize_t TMS_write(struct file *file, const char *userBuffer, size_t userBufferSize, loff_t *offset) {
 
-    Message *message;
-    SemiLockFreeQueue *queue;
-    RCUSynchronizer *queueSynchronizer;
-    int queueID;
-    unsigned long epoch;
-    unsigned long output;
+    Session *session;
 
-    queueID = iminor(file->f_inode);
+    session = (Session *) file->private_data;
 
-    printk("'%s': 'TMS_write' function is been called with minor number %d!\n", MODULE_NAME, queueID);
+    if (session->enqueueDelay > 0) {
 
-    checkSessionData(file->private_data);
+        printk("'%s': 'TMS_write' function is been called with 'SET_SEND_TIMEOUT' command (%lu)!\n", MODULE_NAME,
+               session->enqueueDelay);
 
-    queueSynchronizer = getQueueRCUSynchronizer(RBTreeSynchronizer, queueID);
+    } else {
 
-    epoch = readLockRCUGettingEpoch(queueSynchronizer);
-
-    queue = (SemiLockFreeQueue *) queueSynchronizer->RCUProtectedDataStructure;
-
-    if (userBufferSize > queue->maxMessageSize)
-        output = FAILURE;
-    else {
-
-        message = createMessageFromUserBuffer(userBuffer, userBufferSize);
-        output = enqueue(queue, message);
-
-        if (output == FAILURE)
-            freeMessage(message);
+        printk("'%s': 'TMS_write' function is been called!\n", MODULE_NAME);
+        return enqueueMessage(session->queueSynchronizer, userBuffer, userBufferSize);
     }
-
-    readUnlockRCU(queueSynchronizer, epoch);
-    return output;
 }
 
 
 static int TMS_release(struct inode *inode, struct file *file) {
 
     printk("'%s': 'TMS_release' function is been called!\n", MODULE_NAME);
+
+    freeSession(file->private_data);
+    file->private_data = NULL;
+
     return 0;
 }
 
 
 static int TMS_flush(struct file *file, fl_owner_t id) {
 
+    /*
     SemiLockFreeQueue *oldQueue;
     SemiLockFreeQueue *newQueue;
     RCUSynchronizer *queueSynchronizer;
@@ -232,7 +193,7 @@ static int TMS_flush(struct file *file, fl_owner_t id) {
     writeUnlockRCU(queueSynchronizer, newQueue);
 
     freeSemiLockFreeQueue(oldQueue, &fullyRemoveMessage);
-
+*/
     return SUCCESS;
 }
 
@@ -258,7 +219,7 @@ static long TMS_unlocked_ioctl(struct file *file, unsigned int command, unsigned
 
         case REVOKE_DELAYED_MESSAGES:
             printk("'%s': 'REVOKE_DELAYED_MESSAGES' command received!\n", MODULE_NAME);
-            revokeDelayedMessages(session);
+            //revokeDelayedMessages(session);
             break;
 
         default:
