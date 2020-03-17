@@ -24,8 +24,8 @@ static RCUSynchronizer *RBTreeSynchronizer;
 static int majorNumber;
 static struct kobject *kObjectParent;
 
-struct work_struct work;
-struct delayed_work delayedWork;
+//struct work_struct work;
+//struct delayed_work delayedWork;
 
 static ssize_t TMS_show(struct kobject *kobj, struct kobj_attribute *kObjAttribute, char *buf) {
 
@@ -272,6 +272,7 @@ int registerTMSDeviceDriver(void) {
         printk("'%s': char device is been successfully registered with major number %d!\n", MODULE_NAME, majorNumber);
 
 
+        /*
         INIT_WORK(&work, example);
 
         INIT_DELAYED_WORK(&delayedWork, example);
@@ -280,6 +281,7 @@ int registerTMSDeviceDriver(void) {
         schedule_work(&work);
         schedule_delayed_work(&delayedWork, 2500);
         cancel_delayed_work_sync(&delayedWork);
+*/
 
         return SUCCESS;
     }
