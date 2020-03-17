@@ -94,8 +94,6 @@ static int TMS_open(struct inode *inode, struct file *file) {
 
     RCUSynchronizer *queueSynchronizer;
     int queueID;
-    RBTree *newRBTree;
-    RBTree *oldRBTree;
 
     queueID = iminor(file->f_inode);
 
@@ -106,19 +104,24 @@ static int TMS_open(struct inode *inode, struct file *file) {
     queueSynchronizer = (RCUSynchronizer *) searchRBTree(RBTreeSynchronizer->RCUProtectedDataStructure, queueID);
     if (queueSynchronizer == NULL) {
 
+        RBTree *newRBTree;
+        RBTree *oldRBTree;
+
         queueSynchronizer = allocateNewQueueRCUSynchronizer(queueID, kObjectParent, &TMS_show, &TMS_store);
 
         oldRBTree = RBTreeSynchronizer->RCUProtectedDataStructure;
         newRBTree = copyRBTree(oldRBTree);
 
         insertRBTree(newRBTree, queueID, queueSynchronizer);
-    }
+
+        writeUnlockRCU(RBTreeSynchronizer, newRBTree);
+
+        freeRBTreeContentExcluded(oldRBTree);
+
+    } else
+        writeUnlockRCU(RBTreeSynchronizer, RBTreeSynchronizer->RCUProtectedDataStructure);
 
     file->private_data = allocateSession(queueSynchronizer);
-
-    writeUnlockRCU(RBTreeSynchronizer, newRBTree);
-
-    freeRBTreeContentExcluded(oldRBTree);
 
     return SUCCESS;
 }
@@ -133,6 +136,7 @@ static ssize_t TMS_read(struct file *file, char *userBuffer, size_t userBufferSi
 
         printk("'%s': 'TMS_read' function is been called with 'SET_RECV_TIMEOUT' command (%lu)!\n", MODULE_NAME,
                session->dequeueDelay);
+        return SUCCESS;
 
     } else {
 
@@ -151,6 +155,7 @@ static ssize_t TMS_write(struct file *file, const char *userBuffer, size_t userB
 
         printk("'%s': 'TMS_write' function is been called with 'SET_SEND_TIMEOUT' command (%lu)!\n", MODULE_NAME,
                session->enqueueDelay);
+        return SUCCESS;
 
     } else {
 
@@ -238,9 +243,11 @@ static struct file_operations TMSOperation = {
         flush: TMS_flush
 };
 
+/*
 static void example(struct work_struct *input) {
     printk("'%s': WORK QUEUE!\n", MODULE_NAME);
 }
+*/
 
 int registerTMSDeviceDriver(void) {
 

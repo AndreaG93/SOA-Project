@@ -34,14 +34,14 @@ void revokeDelayedMessages(Session *input) {
 
     spin_lock(&input->spinlock);
 
-    freeRBTreeContentIncluded(input->delayedMessages, &revokeDelayedMessage)
-    output->delayedMessages = allocateRBTree();
+    freeRBTreeContentIncluded(input->delayedMessages, &revokeDelayedMessage);
+    input->delayedMessages = allocateRBTree();
 
     spin_unlock(&input->spinlock);
 }
 
 void freeSession(Session* input) {
 
-    freeRBTreeContentIncluded(input->pendingRequests, &revokeDelayedMessage);
+    freeRBTreeContentIncluded(input->delayedMessages, &revokeDelayedMessage);
     kfree(input);
 }

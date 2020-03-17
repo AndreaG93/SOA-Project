@@ -1,7 +1,10 @@
 #include "MessagesManagement.h"
 
+#include "Common/BasicDefines.h"
+
 #include "DataStructure/RCUSynchronizer.h"
 #include "DataStructure/Message.h"
+#include "DataStructure/SemiLockFreeQueue.h"
 
 unsigned int enqueueMessage(RCUSynchronizer* queueSynchronizer, const char *userBuffer, size_t userBufferSize) {
 

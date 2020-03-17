@@ -25,7 +25,7 @@ void readTest() {
     }
 
     errno = 0;
-    if (ioctl(fileDescriptor, 7, 1) != 0){
+    if (ioctl(fileDescriptor, 7, 0) != 0){
 
         fprintf(stderr, "[ERROR] %s", strerror(errno));
         exit(EXIT_FAILURE);
