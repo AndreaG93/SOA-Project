@@ -5,6 +5,7 @@
 #include <linux/uaccess.h>
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
+#include <linux/workqueue.h>
 
 #include "Common/BasicDefines.h"
 #include "Common/ModuleMetadata.h"
@@ -14,12 +15,41 @@
 #include "DataStructure/SemiLockFreeQueue.h"
 #include "DataStructure/RCUSynchronizer.h"
 #include "DataStructure/Message.h"
+#include "DataStructure/SessionData.h"
 
 #include "ModuleFunctions.h"
 
 static RCUSynchronizer *RBTreeSynchronizer;
 static int majorNumber;
 static struct kobject *kObjectParent;
+
+struct work_struct work;
+struct delayed_work delayedWork;
+
+
+
+static void checkSessionData(SessionData *sessionData) {
+
+    if (sessionData != NULL)
+
+        switch (sessionData->sessionCommand) {
+
+            case SET_SEND_TIMEOUT:
+                printk("'%s': 'SET_SEND_TIMEOUT' command received with parameter: %ld\n", MODULE_NAME, sessionData->sessionCommandParameter);
+                break;
+
+            case SET_RECV_TIMEOUT:
+                printk("'%s': 'SET_RECV_TIMEOUT' command received with parameter: %ld\n", MODULE_NAME, sessionData->sessionCommandParameter);
+                break;
+
+            case REVOKE_DELAYED_MESSAGES:
+                printk("'%s': 'REVOKE_DELAYED_MESSAGES' command received with parameter: %ld\n", MODULE_NAME, sessionData->sessionCommandParameter);
+                break;
+            default:
+                break;
+        }
+}
+
 
 static ssize_t TMS_show(struct kobject *kobj, struct kobj_attribute *kObjAttribute, char *buf) {
 
@@ -42,8 +72,7 @@ static ssize_t TMS_show(struct kobject *kobj, struct kobj_attribute *kObjAttribu
 
     if (strcmp(kObjAttribute->attr.name, "max_message_size") == 0) {
         output = sprintf(buf, "%ld\n", queue->maxMessageSize);
-    }
-    else {
+    } else {
         output = sprintf(buf, "%ld\n", queue->maxStorageSize);
     }
 
@@ -71,8 +100,7 @@ static ssize_t TMS_store(struct kobject *kobj, struct kobj_attribute *kObjAttrib
 
     if (strcmp(kObjAttribute->attr.name, "max_message_size") == 0) {
         sscanf(buf, "%ldu", &(queue->maxMessageSize));
-    }
-    else {
+    } else {
         sscanf(buf, "%ldu", &(queue->maxStorageSize));
     }
 
@@ -141,6 +169,8 @@ static ssize_t TMS_read(struct file *file, char *userBuffer, size_t userBufferSi
 
     printk("'%s': 'TMS_read' function is been called with minor number %d!\n", MODULE_NAME, queueID);
 
+    checkSessionData(file->private_data);
+
     queueSynchronizer = getQueueRCUSynchronizer(RBTreeSynchronizer, queueID);
 
     epoch = readLockRCUGettingEpoch(queueSynchronizer);
@@ -171,6 +201,8 @@ static ssize_t TMS_write(struct file *file, const char *userBuffer, size_t userB
     queueID = iminor(file->f_inode);
 
     printk("'%s': 'TMS_write' function is been called with minor number %d!\n", MODULE_NAME, queueID);
+
+    checkSessionData(file->private_data);
 
     queueSynchronizer = getQueueRCUSynchronizer(RBTreeSynchronizer, queueID);
 
@@ -229,27 +261,17 @@ static int TMS_flush(struct file *file, fl_owner_t id) {
 
 static long TMS_unlocked_ioctl(struct file *file, unsigned int command, unsigned long parameter) {
 
-    int queueID;
+    SessionData *sessionData;
 
-    queueID = iminor(file->f_inode);
+    printk("'%s': 'TMS_unlocked_ioctl' function is been called!\n", MODULE_NAME);
 
-    printk("'%s': 'TMS_unlocked_ioctl' function is been called with minor number %d\n", MODULE_NAME, queueID);
+    sessionData = (SessionData *) file->private_data;
 
-    switch (command) {
-
-        case SET_SEND_TIMEOUT:
-            printk("'%s': 'SET_SEND_TIMEOUT' command received with parameter: %ld\n", MODULE_NAME, parameter);
-            break;
-
-        case SET_RECV_TIMEOUT:
-            printk("'%s': 'SET_RECV_TIMEOUT' command received with parameter: %ld\n", MODULE_NAME, parameter);
-            break;
-
-        case REVOKE_DELAYED_MESSAGES:
-            printk("'%s': 'REVOKE_DELAYED_MESSAGES' command received with parameter: %ld\n", MODULE_NAME, parameter);
-            break;
-        default:
-            break;
+    if (sessionData == NULL)
+        file->private_data = allocateSessionData(command, parameter);
+    else {
+        sessionData->sessionCommand = command;
+        sessionData->sessionCommandParameter = parameter;
     }
 
     return SUCCESS;
@@ -263,6 +285,10 @@ static struct file_operations TMSOperation = {
         unlocked_ioctl: TMS_unlocked_ioctl,
         flush: TMS_flush
 };
+
+static void example(struct work_struct * input) {
+    printk("'%s': WORK QUEUE!\n", MODULE_NAME);
+}
 
 int registerTMSDeviceDriver(void) {
 
@@ -292,6 +318,16 @@ int registerTMSDeviceDriver(void) {
         kObjectParent = kobject_create_and_add("TSM", kernel_kobj);
 
         printk("'%s': char device is been successfully registered with major number %d!\n", MODULE_NAME, majorNumber);
+
+
+        INIT_WORK(&work, example);
+
+        INIT_DELAYED_WORK(&delayedWork, example);
+
+
+        schedule_work(&work);
+        schedule_delayed_work(&delayedWork, 10000);
+
         return SUCCESS;
     }
 }
