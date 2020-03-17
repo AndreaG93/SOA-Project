@@ -15,7 +15,7 @@
 #include "DataStructure/SemiLockFreeQueue.h"
 #include "DataStructure/RCUSynchronizer.h"
 #include "DataStructure/Message.h"
-#include "DataStructure/SessionData.h"
+#include "DataStructure/Session.h"
 
 #include "ModuleFunctions.h"
 
@@ -25,31 +25,6 @@ static struct kobject *kObjectParent;
 
 struct work_struct work;
 struct delayed_work delayedWork;
-
-
-
-static void checkSessionData(SessionData *sessionData) {
-
-    if (sessionData != NULL)
-
-        switch (sessionData->sessionCommand) {
-
-            case SET_SEND_TIMEOUT:
-                printk("'%s': 'SET_SEND_TIMEOUT' command received with parameter: %ld\n", MODULE_NAME, sessionData->sessionCommandParameter);
-                break;
-
-            case SET_RECV_TIMEOUT:
-                printk("'%s': 'SET_RECV_TIMEOUT' command received with parameter: %ld\n", MODULE_NAME, sessionData->sessionCommandParameter);
-                break;
-
-            case REVOKE_DELAYED_MESSAGES:
-                printk("'%s': 'REVOKE_DELAYED_MESSAGES' command received with parameter: %ld\n", MODULE_NAME, sessionData->sessionCommandParameter);
-                break;
-            default:
-                break;
-        }
-}
-
 
 static ssize_t TMS_show(struct kobject *kobj, struct kobj_attribute *kObjAttribute, char *buf) {
 
@@ -122,6 +97,8 @@ static int TMS_open(struct inode *inode, struct file *file) {
     queueID = iminor(file->f_inode);
 
     printk("'%s': 'TMS_open' function is been called with minor number %d!\n", MODULE_NAME, queueID);
+
+    file->private_data = allocateSession();
 
     queueSynchronizer = getQueueRCUSynchronizer(RBTreeSynchronizer, queueID);
 
@@ -197,6 +174,7 @@ static ssize_t TMS_write(struct file *file, const char *userBuffer, size_t userB
     RCUSynchronizer *queueSynchronizer;
     int queueID;
     unsigned long epoch;
+    unsigned long output;
 
     queueID = iminor(file->f_inode);
 
@@ -210,20 +188,19 @@ static ssize_t TMS_write(struct file *file, const char *userBuffer, size_t userB
 
     queue = (SemiLockFreeQueue *) queueSynchronizer->RCUProtectedDataStructure;
 
-    if (userBufferSize > queue->maxMessageSize) {
-
-        readUnlockRCU(queueSynchronizer, epoch);
-        return -FAILURE;
-
-    } else {
+    if (userBufferSize > queue->maxMessageSize)
+        output = FAILURE;
+    else {
 
         message = createMessageFromUserBuffer(userBuffer, userBufferSize);
+        output = enqueue(queue, message);
 
-        enqueue(queue, message);
-        readUnlockRCU(queueSynchronizer, epoch);
+        if (output == FAILURE)
+            freeMessage(message);
     }
 
-    return SUCCESS;
+    readUnlockRCU(queueSynchronizer, epoch);
+    return output;
 }
 
 
@@ -261,17 +238,31 @@ static int TMS_flush(struct file *file, fl_owner_t id) {
 
 static long TMS_unlocked_ioctl(struct file *file, unsigned int command, unsigned long parameter) {
 
-    SessionData *sessionData;
+    Session *session;
 
     printk("'%s': 'TMS_unlocked_ioctl' function is been called!\n", MODULE_NAME);
 
-    sessionData = (SessionData *) file->private_data;
+    session = (Session *) file->private_data;
 
-    if (sessionData == NULL)
-        file->private_data = allocateSessionData(command, parameter);
-    else {
-        sessionData->sessionCommand = command;
-        sessionData->sessionCommandParameter = parameter;
+    switch (command) {
+
+        case SET_SEND_TIMEOUT:
+            printk("'%s': 'SET_SEND_TIMEOUT' command received with parameter: %ld\n", MODULE_NAME, parameter);
+            session->enqueueDelay = parameter;
+            break;
+
+        case SET_RECV_TIMEOUT:
+            printk("'%s': 'SET_RECV_TIMEOUT' command received with parameter: %ld\n", MODULE_NAME, parameter);
+            session->dequeueDelay = parameter;
+            break;
+
+        case REVOKE_DELAYED_MESSAGES:
+            printk("'%s': 'REVOKE_DELAYED_MESSAGES' command received!\n", MODULE_NAME);
+            revokeDelayedMessages(session);
+            break;
+
+        default:
+            return FAILURE;
     }
 
     return SUCCESS;
@@ -286,7 +277,7 @@ static struct file_operations TMSOperation = {
         flush: TMS_flush
 };
 
-static void example(struct work_struct * input) {
+static void example(struct work_struct *input) {
     printk("'%s': WORK QUEUE!\n", MODULE_NAME);
 }
 
@@ -326,7 +317,8 @@ int registerTMSDeviceDriver(void) {
 
 
         schedule_work(&work);
-        schedule_delayed_work(&delayedWork, 10000);
+        schedule_delayed_work(&delayedWork, 2500);
+        cancel_delayed_work_sync(&delayedWork);
 
         return SUCCESS;
     }
