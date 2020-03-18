@@ -237,7 +237,7 @@ static long TMS_unlocked_ioctl(struct file *file, unsigned int command, unsigned
     flag = 'a';
 
     printk("entro...");
-    wait_event_timeout(*head,flag=='n',3000);
+    wait_event_timeout(*head,flag=='n',5000);
     printk("uscita...");
 
     /*
