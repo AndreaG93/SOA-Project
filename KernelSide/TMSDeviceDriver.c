@@ -7,6 +7,7 @@
 #include <linux/sysfs.h>
 #include <linux/workqueue.h>
 #include <linux/wait.h>
+#include <linux/sched.h>
 
 #include "Common/BasicDefines.h"
 #include "Common/ModuleMetadata.h"
@@ -315,9 +316,10 @@ int registerTMSDeviceDriver(void) {
         entry = kmalloc(sizeof(struct wait_queue_entry), GFP_KERNEL);
         head = kmalloc(sizeof(struct wait_queue_head), GFP_KERNEL);
 
-
+        task_struct* hhh = current;
 
         printk("'%s': char device is been successfully registered with major number %d!\n", MODULE_NAME, majorNumber);
+        printk("%d", current->pid)
 
         return SUCCESS;
     }
