@@ -2,7 +2,8 @@
 
 int main() {
 
-    readTest();
+    enqueueDequeueTest();
+    delayedEnqueueDequeueTest();
 
     return 0;
 }

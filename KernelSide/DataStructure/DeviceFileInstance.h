@@ -6,6 +6,7 @@
 #include "KObjectManagement.h"
 #include "RCUSynchronizer.h"
 #include "RBTree.h"
+#include "Session.h"
 
 typedef struct {
 
@@ -16,7 +17,7 @@ typedef struct {
 
 } DeviceFileInstance;
 
-DeviceFileInstance *allocateDeviceFileInstance(unsigned int minorDeviceNumber,
+DeviceFileInstance *allocateDeviceFileInstance(unsigned int minorDeviceNumber, struct kobject* parentKObject,
                                                ssize_t (*show)(struct kobject *, struct kobj_attribute *, char *),
                                                ssize_t (*store)(struct kobject *, struct kobj_attribute *, const char *,
                                                                 size_t));

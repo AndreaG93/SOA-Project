@@ -10,8 +10,8 @@ typedef struct {
     RBTree *pendingEnqueueOperations;
     RBTree *pendingDequeueOperations;
 
-    spinlock_t *pendingEnqueueOperationsSpinlock;
-    spinlock_t *pendingDequeueOperationsSpinlock;
+    spinlock_t pendingEnqueueOperationsSpinlock;
+    spinlock_t pendingDequeueOperationsSpinlock;
 
     unsigned long enqueueDelay;
     unsigned long dequeueDelay;

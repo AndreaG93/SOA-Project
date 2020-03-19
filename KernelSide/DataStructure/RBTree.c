@@ -21,7 +21,7 @@ RBTree *allocateRBTree(void) {
     return kmalloc(sizeof(RBTree), GFP_KERNEL);
 }
 
-RBTreeNodeContent* allocateRBTreeNodeContent(RBTree *input, unsigned long nodeID, void *data) {
+RBTreeNodeContent* allocateRBTreeNodeContent(unsigned long nodeID, void *data) {
 
     RBTreeNodeContent *output = kmalloc(sizeof(RBTreeNodeContent), GFP_KERNEL);
     if (output != NULL) {
@@ -52,7 +52,7 @@ DriverError insertRBTree(RBTree *input, unsigned long nodeID, void *data) {
 
             if (nodeContent->nodeID < currentNodeContent->nodeID)
                 new = &((*new)->rb_left);
-            else if (nodeContent->id > currentNodeContent->nodeID)
+            else if (nodeContent->nodeID > currentNodeContent->nodeID)
                 new = &((*new)->rb_right);
             else {
 
@@ -154,11 +154,11 @@ void cleanRBTree(RBTree *input, void (*freeFunction)(void *)) {
 }
 
 void freeRBTreeContentExcluded(RBTree *input) {
-    freeRBTree(input, NULL);
+    cleanRBTree(input, NULL);
     kfree(input);
 }
 
 void freeRBTreeContentIncluded(RBTree *input, void (*freeFunction)(void *)) {
-    freeRBTree(input, freeFunction);
+    cleanRBTree(input, freeFunction);
     kfree(input);
 }

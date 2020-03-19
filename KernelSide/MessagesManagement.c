@@ -1,4 +1,5 @@
 #include <linux/workqueue.h>
+#include <linux/slab.h>
 
 #include "MessagesManagement.h"
 
@@ -7,6 +8,8 @@
 #include "DataStructure/RCUSynchronizer.h"
 #include "DataStructure/Message.h"
 #include "DataStructure/SemiLockFreeQueue.h"
+#include "DataStructure/DelayedEnqueueOperation.h"
+#include "DataStructure/Session.h"
 
 DriverError enqueueMessage(RCUSynchronizer* queueSynchronizer, const char *userBuffer, size_t userBufferSize) {
 
@@ -63,13 +66,31 @@ DriverError dequeueMessage(RCUSynchronizer* queueSynchronizer, void *userBuffer,
     return output;
 }
 
-void enqueueMessageDelayed(struct work_struct *input) {
+void performDelayedEnqueueOperation(struct work_struct *input) {
 
     struct delayed_work *delayedWork;
-    DelayedEnqueueMessageOperation *operation;
+    DelayedEnqueueOperation *operation;
 
     delayedWork = container_of(input, struct delayed_work, work);
-    operation = container_of(delayedWork, DelayedEnqueueMessageOperation, work);
+    operation = container_of(delayedWork, DelayedEnqueueOperation, work);
 
-    enqueueMessage(operation->queueSynchronizer, operation->userBuffer, operation->userBufferSize);
+    enqueueMessage(operation->session->queueSynchronizer, operation->userBuffer, operation->userBufferSize);
+}
+
+DriverError enqueueDelayedMessage(Session* session, const char *userBuffer, size_t userBufferSize) {
+
+    DelayedEnqueueOperation *operation;
+
+    operation = kmalloc(sizeof(DelayedEnqueueOperation), GFP_KERNEL);
+    if (operation == NULL)
+        return -FAILURE;
+
+    operation->session = session;
+    operation->userBuffer = userBuffer;
+    operation->userBufferSize = userBufferSize;
+
+    INIT_DELAYED_WORK(&operation->work, &performDelayedEnqueueOperation);
+    schedule_delayed_work(&operation->work, session->enqueueDelay);
+
+    return SUCCESS;
 }

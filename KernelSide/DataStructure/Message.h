@@ -1,5 +1,7 @@
 #pragma once
 
+#include <linux/workqueue.h>
+
 typedef struct {
     void *content;
     unsigned long size;

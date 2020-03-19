@@ -1,5 +1,5 @@
 #include <linux/kernel.h>
-#include <linux/slab.h>
+
 #include <linux/fs.h>
 #include <linux/cdev.h>
 #include <linux/uaccess.h>
@@ -121,7 +121,7 @@ static int TMS_open(struct inode *inode, struct file *file) {
             RBTree *newRBTree;
             RBTree *oldRBTree;
 
-            deviceFileInstance = allocateDeviceFileInstance(minorDeviceNumber, &TMS_show, &TMS_store);
+            deviceFileInstance = allocateDeviceFileInstance(minorDeviceNumber, kObjectParent, &TMS_show, &TMS_store);
             if (deviceFileInstance == NULL) {
 
                 writeUnlockRCU(DeviceFileInstanceRBTreeSynchronizer,
@@ -170,27 +170,13 @@ static ssize_t TMS_read(struct file *file, char *userBuffer, size_t userBufferSi
 static ssize_t TMS_write(struct file *file, const char *userBuffer, size_t userBufferSize, loff_t *offset) {
 
     Session *session;
-    DelayedEnqueueMessageOperation *operation;
 
     session = (Session *) file->private_data;
 
     if (session->enqueueDelay > 0) {
 
-        printk("'%s': 'TMS_write' function is been called with 'SET_SEND_TIMEOUT' command (%lu)!\n", MODULE_NAME,
-               session->enqueueDelay);
-        /*
-        operation = kmalloc(sizeof(DelayedEnqueueMessageOperation), GFP_KERNEL);
-        if (operation == NULL)
-            return FAILURE;
-
-        operation->queueSynchronizer = session->queueSynchronizer;
-        operation->userBuffer = userBuffer;
-        operation->userBufferSize = userBufferSize;
-
-        INIT_DELAYED_WORK(&operation->work, enqueueMessageDelayed);
-        schedule_delayed_work(&operation->work, session->enqueueDelay);
-        */
-        return SUCCESS;
+        printk("'%s': 'TMS_write' function is been called with 'SET_SEND_TIMEOUT' command (%lu)!\n", MODULE_NAME, session->enqueueDelay);
+        return enqueueDelayedMessage(session, userBuffer, userBufferSize);
 
     } else {
 

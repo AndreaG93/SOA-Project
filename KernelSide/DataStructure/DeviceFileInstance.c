@@ -2,7 +2,7 @@
 #include <linux/spinlock_types.h>
 #include <linux/sched.h>
 
-#include "../Common/BasicDefines.h"
+#include "../Common/BasicOperations.h"
 
 #include "SemiLockFreeQueue.h"
 #include "KObjectManagement.h"
@@ -11,7 +11,7 @@
 #include "DeviceFileInstance.h"
 #include "Session.h"
 
-DeviceFileInstance *allocateDeviceFileInstance(unsigned int minorDeviceNumber,
+DeviceFileInstance *allocateDeviceFileInstance(unsigned int minorDeviceNumber, struct kobject* parentKObject,
                                                ssize_t (*show)(struct kobject *, struct kobj_attribute *, char *),
                                                ssize_t (*store)(struct kobject *, struct kobj_attribute *, const char *,
                                                                 size_t)) {
@@ -34,7 +34,7 @@ DeviceFileInstance *allocateDeviceFileInstance(unsigned int minorDeviceNumber,
         return NULL;
     }
 
-    outputSemiLockFreeQueue = allocateSemiLockFreeQueueKObject(DEFAULT_MAX_MESSAGE_SIZE, DEFAULT_MAX_STORAGE_SIZE);
+    outputSemiLockFreeQueue = allocateSemiLockFreeQueue(DEFAULT_MAX_MESSAGE_SIZE, DEFAULT_MAX_STORAGE_SIZE);
     if (outputSemiLockFreeQueue == NULL) {
 
         freeRBTreeContentIncluded(outputRBTree, NULL);
@@ -43,7 +43,7 @@ DeviceFileInstance *allocateDeviceFileInstance(unsigned int minorDeviceNumber,
         return NULL;
     }
 
-    outputKObject = allocateKObject(convertIntToString(minorDeviceNumber), show, store);
+    outputKObject = allocateKObject(convertIntToString(minorDeviceNumber), parentKObject, show, store);
     if (outputKObject == NULL) {
 
         freeSemiLockFreeQueue(outputSemiLockFreeQueue, NULL);
@@ -53,7 +53,7 @@ DeviceFileInstance *allocateDeviceFileInstance(unsigned int minorDeviceNumber,
         return NULL;
     }
 
-    outputRCUSynchronizer = allocateRCUSynchronizer(outputQueue);
+    outputRCUSynchronizer = allocateRCUSynchronizer(outputSemiLockFreeQueue);
     if (output == NULL) {
 
         freeKObject(outputKObject);
@@ -64,7 +64,7 @@ DeviceFileInstance *allocateDeviceFileInstance(unsigned int minorDeviceNumber,
         return NULL;
     }
 
-    spin_lock_init(&output->activeSessionsSpinlock)
+    spin_lock_init(&output->activeSessionsSpinlock);
     output->activeSessions = outputRBTree;
     output->semiLockFreeQueueRCUSynchronizer = outputRCUSynchronizer;
     output->KObject = outputKObject;
