@@ -8,7 +8,6 @@
 #include "DataStructure/RCUSynchronizer.h"
 #include "DataStructure/Message.h"
 #include "DataStructure/SemiLockFreeQueue.h"
-#include "DataStructure/DelayedEnqueueOperation.h"
 #include "DataStructure/Session.h"
 
 DriverError enqueueMessage(RCUSynchronizer* queueSynchronizer, const char *userBuffer, size_t userBufferSize) {
@@ -28,7 +27,7 @@ DriverError enqueueMessage(RCUSynchronizer* queueSynchronizer, const char *userB
 
         message = allocateMessage(userBuffer, userBufferSize);
         if (message == NULL)
-            output = -FAILURE;
+            output = ALLOCATION_ERR;
         else {
 
             output = enqueue(queue, message, message->size);
@@ -55,7 +54,7 @@ DriverError dequeueMessage(RCUSynchronizer* queueSynchronizer, void *userBuffer,
 
     message = dequeue(queue, &getMessageSize);
     if (message == NULL)
-        output = -FAILURE;
+        output = EMPTY_QUEUE_ERR;
     else {
 
         output = copyMessageToUserBuffer(message, userBuffer, userBufferSize);
@@ -68,16 +67,18 @@ DriverError dequeueMessage(RCUSynchronizer* queueSynchronizer, void *userBuffer,
 
 void performDelayedEnqueueOperation(struct work_struct *input) {
 
-    struct delayed_work *delayedWork;
+    /*struct delayed_work *delayedWork;
     DelayedEnqueueOperation *operation;
 
     delayedWork = container_of(input, struct delayed_work, work);
     operation = container_of(delayedWork, DelayedEnqueueOperation, work);
+*/
+    printk("tretretretertert");
 
-    unregisterDelayedEnqueueOperation(operation, operation->session);
-    enqueueMessage(operation->session->queueSynchronizer, operation->userBuffer, operation->userBufferSize);
+    //unregisterDelayedEnqueueOperation(operation->session, operation);   // TODO SE ESEGUO IN RITARDO???
+    //enqueueMessage(operation->session->queueSynchronizer, operation->userBuffer, operation->userBufferSize);
 
-    kfree(delayedWork);
+    //kfree(delayedWork);
 }
 
 DriverError enqueueDelayedMessage(Session* session, const char *userBuffer, size_t userBufferSize) {
@@ -93,4 +94,6 @@ DriverError enqueueDelayedMessage(Session* session, const char *userBuffer, size
     operation->userBufferSize = userBufferSize;
 
     registerDelayedEnqueueOperation(session, operation, &performDelayedEnqueueOperation);
+
+    return SUCCESS;
 }

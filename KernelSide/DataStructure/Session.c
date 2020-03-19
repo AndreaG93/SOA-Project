@@ -4,7 +4,6 @@
 #include "Session.h"
 #include "RCUSynchronizer.h"
 #include "RBTree.h"
-#include "DelayedEnqueueOperation.h"
 
 Session *allocateSession(RCUSynchronizer *queueSynchronizer) {
 
@@ -76,8 +75,14 @@ void revokePendingDequeueOperations(Session *input) {
 
 void freeSession(Session *input) {
 
+    spin_lock(&input->pendingEnqueueOperationsSpinlock);
     freeRBTreeContentIncluded(input->pendingEnqueueOperations, &revokePendingEnqueue);
+    spin_unlock(&input->pendingEnqueueOperationsSpinlock);
+
+    spin_lock(&input->pendingDequeueOperationsSpinlock);
     freeRBTreeContentIncluded(input->pendingDequeueOperations, &revokePendingDequeue);
+    spin_unlock(&input->pendingDequeueOperationsSpinlock);
+
     kfree(input);
 }
 
@@ -91,7 +96,7 @@ void registerDelayedEnqueueOperation(Session* input, DelayedEnqueueOperation* op
     insertRBTree(input->pendingEnqueueOperations, operation->index, operation);
 
     INIT_DELAYED_WORK(&operation->work, work);
-    schedule_delayed_work(&operation->work, session->enqueueDelay);
+    schedule_delayed_work(&operation->work, input->enqueueDelay);
 
     spin_unlock(&input->pendingEnqueueOperationsSpinlock);
 }
@@ -100,7 +105,7 @@ void unregisterDelayedEnqueueOperation(Session* input, DelayedEnqueueOperation* 
 
     spin_lock(&input->pendingEnqueueOperationsSpinlock);
 
-    remove(input->pendingEnqueueOperations, operation->index, NULL);
+    removeRBTree(input->pendingEnqueueOperations, operation->index, NULL);
 
     spin_unlock(&input->pendingEnqueueOperationsSpinlock);
 }

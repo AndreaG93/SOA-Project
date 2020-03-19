@@ -3,6 +3,10 @@
 
 int main() {
 
+    fprintf(stderr, "Start 'emptyTest'...\n");
+    emptyTest();
+
+    return 0;
     fprintf(stderr, "Start 'enqueueDequeueTest'...\n");
     enqueueDequeueTest();
 

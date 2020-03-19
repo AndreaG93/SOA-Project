@@ -19,6 +19,18 @@ typedef struct {
     unsigned long dequeueDelay;
 } Session;
 
+typedef struct {
+
+    unsigned long index;
+
+    struct delayed_work work;
+    Session *session;
+
+    const char *userBuffer;
+    unsigned long userBufferSize;
+
+} DelayedEnqueueOperation;
+
 Session *allocateSession(RCUSynchronizer *queueSynchronizer);
 
 void revokePendingDequeueOperations(Session *input);
@@ -29,4 +41,4 @@ void freeSession(Session *input);
 
 void registerDelayedEnqueueOperation(Session* input, DelayedEnqueueOperation* operation, void (* work)(struct work_struct*));
 
-unregisterDelayedEnqueueOperation(Session* input, DelayedEnqueueOperation* operation);
+void unregisterDelayedEnqueueOperation(Session* input, DelayedEnqueueOperation* operation);

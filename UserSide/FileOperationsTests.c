@@ -6,6 +6,25 @@
 #include <errno.h>
 #include <sys/ioctl.h>
 
+
+void emptyTest() {
+
+    int fileDescriptor;
+
+    errno = 0;
+    fileDescriptor = open("/dev/TMS1", O_RDWR);
+    if (fileDescriptor == -1) {
+
+        fprintf(stderr, "[ERROR] %s", strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+
+    errno = 0;
+    fprintf(stderr, "Error code: %lu, %du\n", read(fileDescriptor, NULL, 10), errno);
+
+    close(fileDescriptor);
+}
+
 void enqueueDequeueTest() {
 
     int fileDescriptor;
@@ -70,12 +89,12 @@ void delayedEnqueueDequeueTest() {
     if (write(fileDescriptor, &"Andrea", 6) == -1)
         exit(EXIT_FAILURE);
 
+    while(1);
+    //output = read(fileDescriptor, buffer1, 6);
 
-    output = read(fileDescriptor, buffer1, 6);
 
 
-
-    fprintf(stderr, "Message 1 read: %s\n", buffer1);
+    //fprintf(stderr, "Message 1 read: %s\n", buffer1);
 
     close(fileDescriptor);
 }

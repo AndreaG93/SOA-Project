@@ -14,3 +14,7 @@
 #define REVOKE_DELAYED_MESSAGES 7
 
 typedef unsigned char DriverError;
+
+#define ALLOCATION_ERR 1
+#define EMPTY_QUEUE_ERR 2
+#define FULL_QUEUE_ERR 3
