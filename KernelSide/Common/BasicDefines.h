@@ -12,3 +12,5 @@
 #define SET_SEND_TIMEOUT 5
 #define SET_RECV_TIMEOUT 6
 #define REVOKE_DELAYED_MESSAGES 7
+
+typedef unsigned char DriverError;

@@ -18,18 +18,18 @@
 #include "DataStructure/RCUSynchronizer.h"
 #include "DataStructure/Message.h"
 #include "DataStructure/Session.h"
+#include "DataStructure/KObjectManagementFunctions.h"
+#include "DataStructure/DeviceFileInstance.h"
 
 #include "ModuleFunctions.h"
 #include "MessagesManagement.h"
 
-static RCUSynchronizer *RBTreeSynchronizer;
+static RCUSynchronizer *DeviceFileInstanceRBTreeSynchronizer;
 static int majorNumber;
 static struct kobject *kObjectParent;
 
-struct wait_queue_entry *entry;
-struct wait_queue_head *head;
+static KObjectManagementFunctions kObjectManagementFunctions;
 
-static char flag;
 
 static ssize_t TMS_show(struct kobject *kobj, struct kobj_attribute *kObjAttribute, char *buf) {
 
@@ -94,42 +94,58 @@ static ssize_t TMS_store(struct kobject *kobj, struct kobj_attribute *kObjAttrib
     return count;
 }
 
+static KObjectManagementFunctions kObjectManagementFunctions = {
+        store: TMS_store,
+        show: TMS_show
+};
+
 static int TMS_open(struct inode *inode, struct file *file) {
 
-    /*
-    RCUSynchronizer *queueSynchronizer;
-    int queueID;
+    DeviceFileInstance *deviceFileInstance;
+    unsigned int minorDeviceNumber;
 
-    queueID = iminor(file->f_inode);
+    minorDeviceNumber = iminor(file->f_inode);
 
-    printk("'%s': 'TMS_open' function is been called with minor number %d!\n", MODULE_NAME, queueID);
+    printk("'%s': 'TMS_open' function is been called with minor number %d!\n", MODULE_NAME, minorDeviceNumber);
 
-    writeLockRCU(RBTreeSynchronizer);
+    deviceFileInstance = getDeviceFileInstanceFromSynchronizer(DeviceFileInstanceRBTreeSynchronizer, minorDeviceNumber);
 
-    queueSynchronizer = (RCUSynchronizer *) searchRBTree(RBTreeSynchronizer->RCUProtectedDataStructure, queueID);
-    if (queueSynchronizer == NULL) {
+    if (deviceFileInstance == NULL) {
 
-        RBTree *newRBTree;
-        RBTree *oldRBTree;
+        writeLockRCU(DeviceFileInstanceRBTreeSynchronizer);
 
-        queueSynchronizer = allocateNewQueueRCUSynchronizer(queueID, kObjectParent, &TMS_show, &TMS_store);
+        deviceFileInstance = searchRBTree(DeviceFileInstanceRBTreeSynchronizer->RCUProtectedDataStructure, minorDeviceNumber);
 
-        oldRBTree = RBTreeSynchronizer->RCUProtectedDataStructure;
-        newRBTree = copyRBTree(oldRBTree);
+        if (deviceFileInstance != NULL)
+            writeUnlockRCU(DeviceFileInstanceRBTreeSynchronizer, DeviceFileInstanceRBTreeSynchronizer->RCUProtectedDataStructure);
+        else {
 
-        insertRBTree(newRBTree, queueID, queueSynchronizer);
+            RBTree *newRBTree;
+            RBTree *oldRBTree;
 
-        writeUnlockRCU(RBTreeSynchronizer, newRBTree);
+            deviceFileInstance = allocateDeviceFileInstance(minorDeviceNumber, NULL);
+            if (deviceFileInstance == NULL) {
 
-        freeRBTreeContentExcluded(oldRBTree);
+                writeUnlockRCU(DeviceFileInstanceRBTreeSynchronizer, DeviceFileInstanceRBTreeSynchronizer->RCUProtectedDataStructure);
+                return FAILURE;
 
-    } else
-        writeUnlockRCU(RBTreeSynchronizer, RBTreeSynchronizer->RCUProtectedDataStructure);
+            } else {
 
-    file->private_data = allocateSession(queueSynchronizer);
+                oldRBTree = DeviceFileInstanceRBTreeSynchronizer->RCUProtectedDataStructure;
+                newRBTree = copyRBTree(oldRBTree);
 
-    return SUCCESS;
-     */
+                insertRBTree(newRBTree, minorDeviceNumber, deviceFileInstance);
+
+                writeUnlockRCU(DeviceFileInstanceRBTreeSynchronizer, newRBTree);
+
+                freeRBTreeContentExcluded(oldRBTree);
+            }
+        }
+    }
+
+    file->private_data = allocateSession(deviceFileInstance->semiLockFreeQueueRCUSynchronizer);
+    registerSessionIntoDeviceFileInstance(deviceFileInstance, file->private_data);
+
     return SUCCESS;
 }
 
@@ -153,9 +169,6 @@ static ssize_t TMS_read(struct file *file, char *userBuffer, size_t userBufferSi
 
 static ssize_t TMS_write(struct file *file, const char *userBuffer, size_t userBufferSize, loff_t *offset) {
 
-    remove_wait_queue(head, entry);
-    wake_up(head);
-    /*
     Session *session;
     DelayedEnqueueMessageOperation *operation;
 
@@ -164,7 +177,7 @@ static ssize_t TMS_write(struct file *file, const char *userBuffer, size_t userB
     if (session->enqueueDelay > 0) {
 
         printk("'%s': 'TMS_write' function is been called with 'SET_SEND_TIMEOUT' command (%lu)!\n", MODULE_NAME, session->enqueueDelay);
-
+        /*
         operation = kmalloc(sizeof(DelayedEnqueueMessageOperation), GFP_KERNEL);
         if (operation == NULL)
             return FAILURE;
@@ -175,7 +188,7 @@ static ssize_t TMS_write(struct file *file, const char *userBuffer, size_t userB
 
         INIT_DELAYED_WORK(&operation->work, enqueueMessageDelayed);
         schedule_delayed_work(&operation->work, session->enqueueDelay);
-
+        */
         return SUCCESS;
 
     } else {
@@ -183,20 +196,16 @@ static ssize_t TMS_write(struct file *file, const char *userBuffer, size_t userB
         printk("'%s': 'TMS_write' function is been called!\n", MODULE_NAME);
         return enqueueMessage(session->queueSynchronizer, userBuffer, userBufferSize);
     }
-    */
-
-    return SUCCESS;
 }
 
 
 static int TMS_release(struct inode *inode, struct file *file) {
 
-
     printk("'%s': 'TMS_release' function is been called!\n", MODULE_NAME);
-    /*
-       freeSession(file->private_data);
-       file->private_data = NULL;
-   */
+
+    freeSession(file->private_data);
+    file->private_data = NULL;
+
     return 0;
 }
 
@@ -229,19 +238,6 @@ static int TMS_flush(struct file *file, fl_owner_t id) {
 
 static long TMS_unlocked_ioctl(struct file *file, unsigned int command, unsigned long parameter) {
 
-    init_waitqueue_head(head);
-
-    init_waitqueue_entry(entry, current);
-
-    add_wait_queue(head, entry);
-
-    flag = 'a';
-
-    printk("entro...");
-    wait_event_timeout(*head,flag=='n',5000);
-    printk("uscita...");
-
-    /*
     Session *session;
 
     printk("'%s': 'TMS_unlocked_ioctl' function is been called!\n", MODULE_NAME);
@@ -268,7 +264,7 @@ static long TMS_unlocked_ioctl(struct file *file, unsigned int command, unsigned
         default:
             return FAILURE;
     }
-*/
+
     return SUCCESS;
 }
 
@@ -280,10 +276,6 @@ static struct file_operations TMSOperation = {
         unlocked_ioctl: TMS_unlocked_ioctl,
         flush: TMS_flush
 };
-
-void example(void) {
-    printk("'%s': WAIT WAIT WAIT!\n", MODULE_NAME);
-}
 
 int registerTMSDeviceDriver(void) {
 
@@ -312,14 +304,7 @@ int registerTMSDeviceDriver(void) {
 
         kObjectParent = kobject_create_and_add("TSM", kernel_kobj);
 
-
-        entry = kmalloc(sizeof(struct wait_queue_entry), GFP_KERNEL);
-        head = kmalloc(sizeof(struct wait_queue_head), GFP_KERNEL);
-
-        task_struct* hhh = current;
-
         printk("'%s': char device is been successfully registered with major number %d!\n", MODULE_NAME, majorNumber);
-        printk("%d", current->pid)
 
         return SUCCESS;
     }

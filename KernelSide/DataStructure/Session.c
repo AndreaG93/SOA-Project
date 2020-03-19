@@ -1,47 +1,78 @@
+#include <linux/slab.h>
+#include <linux/workqueue.h>
+
 #include "Session.h"
 #include "RCUSynchronizer.h"
 #include "RBTree.h"
 
-#include <linux/slab.h>
-#include <linux/workqueue.h>
+Session *allocateSession(RCUSynchronizer *queueSynchronizer) {
 
-Session* allocateSession(RCUSynchronizer *queueSynchronizer) {
+    Session *output;
+    RBTree *pendingEnqueueOperations;
+    RBTree *pendingDequeueOperations;
 
-    Session *output = kmalloc(sizeof(Session), GFP_KERNEL);
-    if (output != NULL) {
+    output = kmalloc(sizeof(Session), GFP_KERNEL);
+    if (output == NULL)
+        return NULL;
 
-        spin_lock_init(&output->spinlock);
+    pendingEnqueueOperations = allocateRBTree();
+    if (pendingEnqueueOperations == NULL) {
 
-        output->dequeueDelay = 0;
-        output->enqueueDelay = 0;
-
-        output->delayedMessages = allocateRBTree();
-        output->queueSynchronizer = queueSynchronizer;
+        kfree(output);
+        return NULL;
     }
+
+    pendingDequeueOperations = allocateRBTree();
+    if (pendingDequeueOperations == NULL) {
+
+        kfree(pendingEnqueueOperations);
+        kfree(output);
+        return NULL;
+    }
+
+    spin_lock_init(&output->pendingDequeueOperationsSpinlock);
+    spin_lock_init(&output->pendingEnqueueOperationsSpinlock);
+
+    output->dequeueDelay = 0;
+    output->enqueueDelay = 0;
+
+    output->queueSynchronizer = queueSynchronizer;
+    output->pendingDequeueOperations = pendingDequeueOperations;
+    output->pendingEnqueueOperations = pendingEnqueueOperations;
 
     return output;
 }
 
-void revokeDelayedMessage(void *input) {
+void revokePendingEnqueue(void *input) {
 
-    //struct delayed_work* delayedWork;
+    struct delayed_work *pendingEnqueue;
 
-    //cancel_delayed_work_sync(delayedWork);
-    //kfree(delayedWork);
+    pendingEnqueue = (struct delayed_work *) input;
+
+    cancel_delayed_work_sync(pendingEnqueue);
+    kfree(pendingEnqueue);
 }
 
-void revokeDelayedMessages(Session *input) {
-
-    spin_lock(&input->spinlock);
-
-    freeRBTreeContentIncluded(input->delayedMessages, &revokeDelayedMessage);
-    input->delayedMessages = allocateRBTree();
-
-    spin_unlock(&input->spinlock);
+void revokePendingDequeue(void *input) {
+    // TODO
 }
 
-void freeSession(Session* input) {
+void revokePendingEnqueueOperations(Session *input) {
 
-    freeRBTreeContentIncluded(input->delayedMessages, &revokeDelayedMessage);
+    spin_lock(&input->pendingEnqueueOperationsSpinlock);
+
+    cleanRBTree(input->pendingEnqueueOperations, &revokePendingEnqueue);
+
+    spin_unlock(&input->pendingEnqueueOperationsSpinlock);
+}
+
+void revokePendingDequeueOperations(Session *input) {
+    // TODO
+}
+
+void freeSession(Session *input) {
+
+    freeRBTreeContentIncluded(input->pendingEnqueueOperations, &revokePendingEnqueue);
+    freeRBTreeContentIncluded(input->pendingDequeueOperations, &revokePendingDequeue);
     kfree(input);
 }

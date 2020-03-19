@@ -1,18 +1,23 @@
 #pragma once
 
 #include <linux/rbtree.h>
+
 #include "../Common/BasicDefines.h"
 
 typedef struct rb_root RBTree;
 
 RBTree* allocateRBTree(void);
 
-int insertRBTree(RBTree *input, unsigned int id, void *data);
+DriverError insertRBTree(RBTree *input, unsigned long nodeID, void *data);
 
-void *searchRBTree(RBTree *input, unsigned int id);
+void *searchRBTree(RBTree *input, unsigned long nodeID);
 
-RBTree* copyRBTree(RBTree *input);
+void removeRBTree(RBTree *input, unsigned long nodeID, void (*freeFunction)(void *));
+
+void cleanRBTree(RBTree *input, void (*freeFunction)(void *));
 
 void freeRBTreeContentExcluded(RBTree *input);
 
-void freeRBTreeContentIncluded(RBTree *input, void (*dataFreeFunction)(void *));
+void freeRBTreeContentIncluded(RBTree *input, void (*freeFunction)(void *));
+
+RBTree* copyRBTree(RBTree *input);

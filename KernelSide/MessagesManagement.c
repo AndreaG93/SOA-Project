@@ -1,3 +1,5 @@
+#include <linux/workqueue.h>
+
 #include "MessagesManagement.h"
 
 #include "Common/BasicDefines.h"
@@ -6,54 +8,58 @@
 #include "DataStructure/Message.h"
 #include "DataStructure/SemiLockFreeQueue.h"
 
-#include <linux/workqueue.h>
+DriverError enqueueMessage(RCUSynchronizer* queueSynchronizer, const char *userBuffer, size_t userBufferSize) {
 
-unsigned int enqueueMessage(RCUSynchronizer* queueSynchronizer, const char *userBuffer, size_t userBufferSize) {
-
+    DriverError output;
     Message *message;
     SemiLockFreeQueue *queue;
-
-    unsigned long epoch;
-    unsigned long output;
+    unsigned int epoch;
 
     epoch = readLockRCUGettingEpoch(queueSynchronizer);
 
     queue = (SemiLockFreeQueue *) queueSynchronizer->RCUProtectedDataStructure;
 
     if (userBufferSize > queue->maxMessageSize)
-        output = FAILURE;
+        output = -FAILURE;
     else {
 
-        message = createMessageFromUserBuffer(userBuffer, userBufferSize);
-        output = enqueue(queue, message);
+        message = allocateMessage(userBuffer, userBufferSize);
+        if (message == NULL)
+            output = -FAILURE;
+        else {
 
-        if (output == FAILURE)
-            freeMessage(message);
+            output = enqueue(queue, message, message->size);
+
+            if (output == FAILURE)
+                freeMessage(message);
+        }
     }
 
     readUnlockRCU(queueSynchronizer, epoch);
     return output;
 }
 
-unsigned int dequeueMessage(RCUSynchronizer* queueSynchronizer, void *userBuffer, size_t userBufferSize) {
+DriverError dequeueMessage(RCUSynchronizer* queueSynchronizer, void *userBuffer, size_t userBufferSize) {
 
+    DriverError output;
     Message *message;
     SemiLockFreeQueue *queue;
-
-    unsigned long epoch;
-    unsigned char output;
+    unsigned int epoch;
 
     epoch = readLockRCUGettingEpoch(queueSynchronizer);
 
     queue = (SemiLockFreeQueue *) queueSynchronizer->RCUProtectedDataStructure;
 
-    message = dequeue(queue);
+    message = dequeue(queue, &getMessageSize);
+    if (message == NULL)
+        output = -FAILURE;
+    else {
 
-    output = copyMessageToUserBuffer(message, userBuffer, userBufferSize);
+        output = copyMessageToUserBuffer(message, userBuffer, userBufferSize);
+        freeMessage(message);
+    }
 
-    freeMessage(message);
     readUnlockRCU(queueSynchronizer, epoch);
-
     return output;
 }
 

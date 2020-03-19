@@ -1,9 +1,9 @@
+#include <linux/slab.h>
+#include <linux/kobject.h>
+
 #include "SemiLockFreeQueue.h"
 #include "../Common/BasicDefines.h"
 #include "../Common/SynchronizationPrimitives.h"
-
-#include <linux/slab.h>
-#include <linux/kobject.h>
 
 typedef struct {
 
@@ -25,34 +25,31 @@ SemiLockFreeQueueNode *allocateSemiLockFreeQueueNode(void *data) {
     return output;
 }
 
-SemiLockFreeQueue *allocateSemiLockFreeQueue(long maxMessageSize, long maxStorageSize, struct kobject *kObject) {
+SemiLockFreeQueue *allocateSemiLockFreeQueue(long maxMessageSize, long maxStorageSize) {
 
-    SemiLockFreeQueueNode *dummyNode;
     SemiLockFreeQueue *output;
+    SemiLockFreeQueueNode *outputDummyNode;
 
     output = kmalloc(sizeof(SemiLockFreeQueue), GFP_KERNEL);
-    if (output != NULL) {
+    if (output == NULL)
+        return NULL;
 
-        dummyNode = allocateSemiLockFreeQueueNode(NULL);
-        if (dummyNode != NULL) {
+    outputDummyNode = allocateSemiLockFreeQueueNode(NULL);
+    if (outputDummyNode == NULL) {
 
-            output->head = dummyNode;
-            output->tail = dummyNode;
-            output->maxMessageSize = maxMessageSize;
-            output->maxStorageSize = maxStorageSize;
-            output->kObject = kObject;
-
-        } else {
-
-            kfree(output);
-            output = NULL;
-        }
+        kfree(output);
+        return NULL;
     }
+
+    output->head = outputDummyNode;
+    output->tail = outputDummyNode;
+    output->maxMessageSize = maxMessageSize;
+    output->maxStorageSize = maxStorageSize;
 
     return output;
 }
 
-void freeSemiLockFreeQueue(SemiLockFreeQueue *queue, void (*dataFreeFunction)(void *)) {
+void freeSemiLockFreeQueue(SemiLockFreeQueue *queue, void (*freeFunction)(void *)) {
 
     SemiLockFreeQueueNode *currentNode;
     SemiLockFreeQueueNode *nextNode;
@@ -62,7 +59,7 @@ void freeSemiLockFreeQueue(SemiLockFreeQueue *queue, void (*dataFreeFunction)(vo
         nextNode = currentNode->next;
 
         if (currentNode->data != NULL)
-            (*dataFreeFunction)(currentNode->data);
+            (*freeFunction)(currentNode->data);
 
         kfree(currentNode);
         currentNode = nextNode;
@@ -71,16 +68,19 @@ void freeSemiLockFreeQueue(SemiLockFreeQueue *queue, void (*dataFreeFunction)(vo
     kfree(queue);
 }
 
-unsigned char enqueue(SemiLockFreeQueue *queue, void *data) {
+DriverError enqueue(SemiLockFreeQueue *queue, void *data, unsigned long dataSize) {
 
     SemiLockFreeQueueNode *actualTail;
-    SemiLockFreeQueueNode *newNode = allocateSemiLockFreeQueueNode(data);
+    SemiLockFreeQueueNode *newNode;
+    unsigned long currentUsedStorage;
 
-    unsigned long currentUsedStorage = ADD_AND_FETCH(&queue->currentUsedStorage, 1);
+    currentUsedStorage = ADD_AND_FETCH(&queue->currentUsedStorage, dataSize);
     if (currentUsedStorage > queue->maxStorageSize) {
-        SUB_AND_FETCH(&queue->currentUsedStorage, 1);
+        SUB_AND_FETCH(&queue->currentUsedStorage, dataSize);
         return FAILURE;
     }
+
+    newNode = allocateSemiLockFreeQueueNode(data);
 
     while (TRUE) {
 
@@ -94,19 +94,21 @@ unsigned char enqueue(SemiLockFreeQueue *queue, void *data) {
     return SUCCESS;
 }
 
-void *dequeue(SemiLockFreeQueue *queue) {
+void *dequeue(SemiLockFreeQueue *queue, unsigned long (*getSizeFromData)(void *)) {
 
     SemiLockFreeQueueNode *actualHead;
-    void *output = NULL;
-
-    unsigned long currentUsedStorage = SUB_AND_FETCH(&queue->currentUsedStorage, 1);
-    if (currentUsedStorage < 0) {
-        ADD_AND_FETCH(&queue->currentUsedStorage, 1);
-        return NULL;
-    }
+    void *output;
+    unsigned long outputSize;
+    unsigned long currentUsedStorage;
 
     do {
+
+        currentUsedStorage = ADD_AND_FETCH(&queue->currentUsedStorage, 0);
+        if (currentUsedStorage == 0)
+            return NULL;
+
         actualHead = queue->head;
+
     } while (actualHead == NULL || !COMPARE_AND_SWAP(&queue->head, actualHead, NULL));
 
     if (actualHead->next == NULL) {
@@ -116,8 +118,12 @@ void *dequeue(SemiLockFreeQueue *queue) {
 
     output = ((SemiLockFreeQueueNode *) actualHead->next)->data;
     ((SemiLockFreeQueueNode *) actualHead->next)->data = NULL;
+
     queue->head = actualHead->next;
     kfree(actualHead);
+
+    outputSize = (*getSizeFromData)(output);
+    SUB_AND_FETCH(&queue->currentUsedStorage, outputSize)
 
     return output;
 }

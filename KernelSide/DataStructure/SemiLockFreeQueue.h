@@ -1,23 +1,24 @@
 #pragma once
+
 #include <linux/kobject.h>
+
+#include "../Common/BasicDefines.h"
 
 typedef struct {
 
-    void* tail;
-    void* head;
+    void *tail;
+    void *head;
 
     long maxMessageSize;
     long maxStorageSize;
     long currentUsedStorage;
 
-    struct kobject *kObject;
-
 } SemiLockFreeQueue;
 
-SemiLockFreeQueue *allocateSemiLockFreeQueue(long maxMessageSize, long maxStorageSize, struct kobject *kObject);
+SemiLockFreeQueue *allocateSemiLockFreeQueue(long maxMessageSize, long maxStorageSize);
 
-unsigned char enqueue(SemiLockFreeQueue *input, void *data);
+DriverError enqueue(SemiLockFreeQueue *queue, void *data, unsigned long dataSize);
 
-void *dequeue(SemiLockFreeQueue *input);
+void *dequeue(SemiLockFreeQueue *queue, unsigned long (*getSizeFromData)(void *));
 
-void freeSemiLockFreeQueue(SemiLockFreeQueue *queue, void (*dataFreeFunction)(void *));
+void freeSemiLockFreeQueue(SemiLockFreeQueue *queue, void (*freeFunction)(void *));

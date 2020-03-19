@@ -9,33 +9,33 @@
 
 typedef struct {
 
-    unsigned int id;
     struct rb_node node;
 
+    unsigned long nodeID;
     void *data;
 
 } RBTreeNodeContent;
-
-RBTreeNodeContent *allocateRBTreeNodeContent(unsigned int id, void *data) {
-
-    RBTreeNodeContent *output = kmalloc(sizeof(RBTreeNodeContent), GFP_KERNEL);
-    if (output != NULL) {
-
-        output->id = id;
-        output->data = data;
-    }
-
-    return output;
-}
 
 
 RBTree *allocateRBTree(void) {
     return kmalloc(sizeof(RBTree), GFP_KERNEL);
 }
 
-int insertRBTree(RBTree *input, unsigned int id, void *data) {
+RBTreeNodeContent* allocateRBTreeNodeContent(RBTree *input, unsigned long nodeID, void *data) {
 
-    RBTreeNodeContent *nodeContent = allocateRBTreeNodeContent(id, data);
+    RBTreeNodeContent *output = kmalloc(sizeof(RBTreeNodeContent), GFP_KERNEL);
+    if (output != NULL) {
+
+        output->nodeID = nodeID;
+        output->data = data;
+    }
+
+    return output;
+}
+
+DriverError insertRBTree(RBTree *input, unsigned long nodeID, void *data) {
+
+    RBTreeNodeContent *nodeContent = allocateRBTreeNodeContent(nodeID, data);
     if (nodeContent == NULL)
         return FAILURE;
     else {
@@ -50,9 +50,9 @@ int insertRBTree(RBTree *input, unsigned int id, void *data) {
             currentNodeContent = container_of(*new, RBTreeNodeContent, node);
             parent = *new;
 
-            if (nodeContent->id < currentNodeContent->id)
+            if (nodeContent->nodeID < currentNodeContent->nodeID)
                 new = &((*new)->rb_left);
-            else if (nodeContent->id > currentNodeContent->id)
+            else if (nodeContent->id > currentNodeContent->nodeID)
                 new = &((*new)->rb_right);
             else {
 
@@ -68,7 +68,7 @@ int insertRBTree(RBTree *input, unsigned int id, void *data) {
     }
 }
 
-void *searchRBTree(RBTree *input, unsigned int id) {
+void *searchRBTree(RBTree *input, unsigned long nodeID) {
 
     void *output = NULL;
     struct rb_node *currentNode;
@@ -79,9 +79,9 @@ void *searchRBTree(RBTree *input, unsigned int id) {
 
         RBTreeNodeContent *currentNodeContent = container_of(currentNode, RBTreeNodeContent, node);
 
-        if (id < currentNodeContent->id)
+        if (nodeID < currentNodeContent->nodeID)
             currentNode = currentNode->rb_left;
-        else if (id > currentNodeContent->id)
+        else if (nodeID > currentNodeContent->nodeID)
             currentNode = currentNode->rb_right;
         else {
             output = currentNodeContent->data;
@@ -93,6 +93,30 @@ void *searchRBTree(RBTree *input, unsigned int id) {
     return output;
 }
 
+void removeRBTree(RBTree *input, unsigned long nodeID, void (*freeFunction)(void *)) {
+
+    struct rb_node *currentNode;
+
+    currentNode = input->rb_node;
+
+    while (currentNode != NULL) {
+
+        RBTreeNodeContent *currentNodeContent = container_of(currentNode, RBTreeNodeContent, node);
+
+        if (nodeID < currentNodeContent->nodeID)
+            currentNode = currentNode->rb_left;
+        else if (nodeID > currentNodeContent->nodeID)
+            currentNode = currentNode->rb_right;
+        else {
+
+            (*freeFunction)(currentNodeContent->data);
+            rb_erase(&currentNodeContent->node, input);
+
+            return;
+        }
+    }
+}
+
 RBTree *copyRBTree(RBTree *input) {
 
     RBTree *newRBTree = allocateRBTree();
@@ -101,13 +125,13 @@ RBTree *copyRBTree(RBTree *input) {
     for (currentNode = rb_first(input); currentNode; currentNode = rb_next(currentNode)) {
 
         RBTreeNodeContent *currentNodeContent = container_of(currentNode, RBTreeNodeContent, node);
-        insertRBTree(newRBTree, currentNodeContent->id, currentNodeContent->data);
+        insertRBTree(newRBTree, currentNodeContent->nodeID, currentNodeContent->data);
     }
 
     return newRBTree;
 }
 
-void freeRBTree(RBTree *input, void (*dataFreeFunction)(void *)) {
+void cleanRBTree(RBTree *input, void (*freeFunction)(void *)) {
 
     RBTreeNodeContent *currentNodeContent;
     struct rb_node *currentNode;
@@ -121,20 +145,20 @@ void freeRBTree(RBTree *input, void (*dataFreeFunction)(void *)) {
         else {
 
             currentNodeContent = container_of(currentNode, RBTreeNodeContent, node);
-            if (dataFreeFunction != NULL)
-                (*dataFreeFunction)(currentNodeContent->data);
+            if (freeFunction != NULL)
+                (*freeFunction)(currentNodeContent->data);
 
             rb_erase(&currentNodeContent->node, input);
         }
     }
-
-    kfree(input);
 }
 
 void freeRBTreeContentExcluded(RBTree *input) {
     freeRBTree(input, NULL);
+    kfree(input);
 }
 
-void freeRBTreeContentIncluded(RBTree *input, void (*dataFreeFunction)(void *)) {
-    freeRBTree(input, dataFreeFunction);
+void freeRBTreeContentIncluded(RBTree *input, void (*freeFunction)(void *)) {
+    freeRBTree(input, freeFunction);
+    kfree(input);
 }

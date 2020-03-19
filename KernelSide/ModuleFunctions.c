@@ -104,8 +104,7 @@ RCUSynchronizer *getQueueRCUSynchronizer(RCUSynchronizer *RBTreeSynchronizer, un
     return output;
 }
 
-RCUSynchronizer *
-allocateNewQueueRCUSynchronizer(unsigned long queueID, struct kobject *kObjectParent,
+RCUSynchronizer *allocateNewQueueRCUSynchronizer(unsigned long queueID, struct kobject *kObjectParent,
                                 ssize_t (*show)(struct kobject *, struct kobj_attribute *, char *),
                                 ssize_t (*store)(struct kobject *, struct kobj_attribute *, const char *, size_t)) {
 

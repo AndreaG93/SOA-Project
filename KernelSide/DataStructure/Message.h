@@ -1,14 +1,14 @@
 #pragma once
 
-#include <linux/types.h>
-
 typedef struct {
     void *content;
-    size_t size;
+    unsigned long size;
 } Message;
 
-Message *createMessageFromUserBuffer(const char *userBuffer, size_t userBufferSize);
+Message *allocateMessage(const char *userBuffer, unsigned long userBufferSize);
 
-int copyMessageToUserBuffer(Message *input, void *userBuffer, size_t userBufferSize);
+int copyMessageToUserBuffer(Message *input, void *userBuffer, unsigned long userBufferSize);
 
 void freeMessage(Message *input);
+
+unsigned long getMessageSize(void *input);

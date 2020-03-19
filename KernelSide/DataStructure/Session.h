@@ -5,17 +5,23 @@
 
 typedef struct {
 
-    spinlock_t spinlock;
-    RBTree *delayedMessages;
     RCUSynchronizer *queueSynchronizer;
+
+    RBTree *pendingEnqueueOperations;
+    RBTree *pendingDequeueOperations;
+
+    spinlock_t *pendingEnqueueOperationsSpinlock;
+    spinlock_t *pendingDequeueOperationsSpinlock;
 
     unsigned long enqueueDelay;
     unsigned long dequeueDelay;
 
 } Session;
 
-Session* allocateSession(RCUSynchronizer *queueSynchronizer);
+Session *allocateSession(RCUSynchronizer *queueSynchronizer);
 
-void revokeDelayedMessages(Session *input);
+void revokePendingDequeueOperations(Session *input);
 
-void freeSession(Session* input);
+void revokePendingEnqueueOperations(Session *input);
+
+void freeSession(Session *input);

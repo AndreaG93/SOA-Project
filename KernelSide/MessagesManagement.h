@@ -12,8 +12,8 @@ typedef struct {
 } DelayedEnqueueMessageOperation;
 
 
-unsigned int enqueueMessage(RCUSynchronizer* queueSynchronizer, const char *userBuffer, size_t userBufferSize);
+DriverError enqueueMessage(RCUSynchronizer* queueSynchronizer, const char *userBuffer, size_t userBufferSize);
 
-unsigned int dequeueMessage(RCUSynchronizer* queueSynchronizer, void *userBuffer, size_t userBufferSize);
+DriverError dequeueMessage(RCUSynchronizer* queueSynchronizer, void *userBuffer, size_t userBufferSize);
 
 void enqueueMessageDelayed(struct work_struct *input);

@@ -1,11 +1,11 @@
 #include "Message.h"
 
-#include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
+
 #include "../Common/BasicDefines.h"
 
-Message *createMessageFromUserBuffer(const char *userBuffer, size_t userBufferSize) {
+Message *allocateMessage(const char *userBuffer, unsigned long userBufferSize) {
 
     Message *output = kmalloc(sizeof(Message), GFP_KERNEL);
     if (output != NULL) {
@@ -30,7 +30,7 @@ Message *createMessageFromUserBuffer(const char *userBuffer, size_t userBufferSi
     return output;
 }
 
-int copyMessageToUserBuffer(Message *input, void *userBuffer, size_t userBufferSize) {
+int copyMessageToUserBuffer(Message *input, void *userBuffer, unsigned long userBufferSize) {
 
     unsigned long byteNotCopied;
 
@@ -49,4 +49,8 @@ void freeMessage(Message *input) {
 
     kfree(input->content);
     kfree(input);
+}
+
+unsigned long getMessageSize(void *input) {
+    return ((Message *) input)->size;
 }

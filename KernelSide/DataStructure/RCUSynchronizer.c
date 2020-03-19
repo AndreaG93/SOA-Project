@@ -1,7 +1,7 @@
-#include "RCUSynchronizer.h"
-
 #include <linux/spinlock_types.h>
 #include <linux/slab.h>
+
+#include "RCUSynchronizer.h"
 
 RCUSynchronizer *allocateRCUSynchronizer(void *dataStructureToProtect) {
 
@@ -53,8 +53,8 @@ void writeUnlockRCU(RCUSynchronizer *input, void *newDataStructureToProtect) {
     spin_unlock(&input->writeLock);
 }
 
-void freeRCUSynchronizer(RCUSynchronizer *input, void (*dataFreeFunction)(void *)) {
+void freeRCUSynchronizer(RCUSynchronizer *input, void (*freeFunction)(void *)) {
 
-    (*dataFreeFunction)(input->RCUProtectedDataStructure);
+    (*freeFunction)(input->RCUProtectedDataStructure);
     kfree(input);
 }
