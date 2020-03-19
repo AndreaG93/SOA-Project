@@ -74,7 +74,10 @@ void performDelayedEnqueueOperation(struct work_struct *input) {
     delayedWork = container_of(input, struct delayed_work, work);
     operation = container_of(delayedWork, DelayedEnqueueOperation, work);
 
+    unregisterDelayedEnqueueOperation(operation, operation->session);
     enqueueMessage(operation->session->queueSynchronizer, operation->userBuffer, operation->userBufferSize);
+
+    kfree(delayedWork);
 }
 
 DriverError enqueueDelayedMessage(Session* session, const char *userBuffer, size_t userBufferSize) {
@@ -89,8 +92,5 @@ DriverError enqueueDelayedMessage(Session* session, const char *userBuffer, size
     operation->userBuffer = userBuffer;
     operation->userBufferSize = userBufferSize;
 
-    INIT_DELAYED_WORK(&operation->work, &performDelayedEnqueueOperation);
-    schedule_delayed_work(&operation->work, session->enqueueDelay);
-
-    return SUCCESS;
+    registerDelayedEnqueueOperation(session, operation, &performDelayedEnqueueOperation);
 }

@@ -49,6 +49,7 @@ void enqueueDequeueTest() {
 void delayedEnqueueDequeueTest() {
 
     int fileDescriptor;
+    int output;
     char *buffer1;
 
 
@@ -69,8 +70,10 @@ void delayedEnqueueDequeueTest() {
     if (write(fileDescriptor, &"Andrea", 6) == -1)
         exit(EXIT_FAILURE);
 
-    if (read(fileDescriptor, buffer1, 6) == -1)
-        exit(EXIT_FAILURE);
+
+    output = read(fileDescriptor, buffer1, 6);
+
+
 
     fprintf(stderr, "Message 1 read: %s\n", buffer1);
 

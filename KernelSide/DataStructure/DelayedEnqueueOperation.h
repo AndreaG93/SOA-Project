@@ -1,6 +1,8 @@
 
 typedef struct {
 
+    unsigned long index;
+
     struct delayed_work work;
     Session *session;
 

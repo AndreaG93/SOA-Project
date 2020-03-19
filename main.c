@@ -7,7 +7,7 @@ int main() {
     enqueueDequeueTest();
 
     fprintf(stderr, "Start 'delayedEnqueueDequeueTest'...\n");
-    //delayedEnqueueDequeueTest();
+    delayedEnqueueDequeueTest();
 
     return 0;
 }
