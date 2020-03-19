@@ -27,7 +27,6 @@
 static RCUSynchronizer *DeviceFileInstanceRBTreeSynchronizer;
 static unsigned int majorNumber;
 static struct kobject *kObjectParent;
-static struct file_operations TMSOperation;
 
 static ssize_t TMS_show(struct kobject *kobj, struct kobj_attribute *kObjAttribute, char *buf) {
 
@@ -36,6 +35,7 @@ static ssize_t TMS_show(struct kobject *kobj, struct kobj_attribute *kObjAttribu
     DeviceFileInstance *deviceFileInstance;
     unsigned int minorDeviceNumber;
     unsigned int epoch;
+    ssize_t output;
 
     minorDeviceNumber = stringToLong(kobj->name);
 
@@ -47,7 +47,7 @@ static ssize_t TMS_show(struct kobject *kobj, struct kobj_attribute *kObjAttribu
 
     epoch = readLockRCUGettingEpoch(semiLockFreeQueueSynchronizer);
 
-    semiLockFreeQueue = (SemiLockFreeQueue *) queueSynchronizer->RCUProtectedDataStructure;
+    semiLockFreeQueue = (SemiLockFreeQueue *) semiLockFreeQueueSynchronizer->RCUProtectedDataStructure;
 
     if (strcmp(kObjAttribute->attr.name, "max_message_size") == 0) {
         output = sprintf(buf, "%ld\n", semiLockFreeQueue->maxMessageSize);
@@ -77,7 +77,7 @@ static ssize_t TMS_store(struct kobject *kobj, struct kobj_attribute *kObjAttrib
 
     writeLockRCU(semiLockFreeQueueSynchronizer);
 
-    semiLockFreeQueue = (SemiLockFreeQueue *) queueSynchronizer->RCUProtectedDataStructure;
+    semiLockFreeQueue = (SemiLockFreeQueue *) semiLockFreeQueueSynchronizer->RCUProtectedDataStructure;
 
     if (strcmp(kObjAttribute->attr.name, "max_message_size") == 0) {
         sscanf(buf, "%ldu", &(semiLockFreeQueue->maxMessageSize));
@@ -269,16 +269,16 @@ static long TMS_unlocked_ioctl(struct file *file, unsigned int command, unsigned
     return SUCCESS;
 }
 
-int registerTMSDeviceDriver(void) {
+static struct file_operations TMSOperation = {
+        read: TMS_read,
+        write: TMS_write,
+        open: TMS_open,
+        release: TMS_release,
+        unlocked_ioctl: TMS_unlocked_ioctl,
+        flush: TMS_flush
+};
 
-    TMSOperation = {
-            read: TMS_read,
-            write: TMS_write,
-            open: TMS_open,
-            release: TMS_release,
-            unlocked_ioctl: TMS_unlocked_ioctl,
-            flush: TMS_flush
-    };
+int registerTMSDeviceDriver(void) {
 
     majorNumber = register_chrdev(0, CHAR_DEVICE_NAME, &TMSOperation);
     if (majorNumber < 0) {
@@ -295,10 +295,10 @@ int registerTMSDeviceDriver(void) {
             return FAILURE;
         }
 
-        RBTreeSynchronizer = allocateRCUSynchronizer(rbTree);
-        if (RBTreeSynchronizer == NULL) {
+        DeviceFileInstanceRBTreeSynchronizer = allocateRCUSynchronizer(rbTree);
+        if (DeviceFileInstanceRBTreeSynchronizer == NULL) {
 
-            printk("'%s': 'RBTreeSynchronizer' allocation failed!\n", MODULE_NAME);
+            printk("'%s': 'DeviceFileInstanceRBTreeSynchronizer' allocation failed!\n", MODULE_NAME);
             kfree(rbTree);
             return FAILURE;
         }
@@ -313,7 +313,7 @@ int registerTMSDeviceDriver(void) {
 
 void unregisterTMSDeviceDriver(void) {
 
-    fullyRemoveRBTreeSynchronizer(RBTreeSynchronizer);
+    //fullyRemoveRBTreeSynchronizer(RBTreeSynchronizer);
 
     unregister_chrdev(majorNumber, CHAR_DEVICE_NAME);
     printk("'%s': char device is been successfully unregistered!!\n", MODULE_NAME);

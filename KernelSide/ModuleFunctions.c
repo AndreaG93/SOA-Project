@@ -26,7 +26,7 @@ void fullyRemoveQueue(void *input) {
 
     queue = (SemiLockFreeQueue *) input;
 
-    kobject_put(queue->kObject);
+    //kobject_put(queue->kObject);
     freeSemiLockFreeQueue(queue, &fullyRemoveMessage);
 }
 
@@ -40,6 +40,8 @@ void fullyRemoveQueueSynchronizer(void *input) {
 
 void fullyRemoveRBTreeSynchronizer(RCUSynchronizer *input) {
 
-    freeRBTreeContentIncluded(input->RCUProtectedDataStructure, &fullyRemoveQueueSynchronizer);
-    kfree(input);
+    //freeRBTreeContentIncluded(input->RCUProtectedDataStructure, &fullyRemoveQueueSynchronizer);
+    //kfree(input);
 }
+
+

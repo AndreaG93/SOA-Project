@@ -1,6 +1,7 @@
-#include "DataStructure/RCUSynchronizer.h"
-
 #include <linux/workqueue.h>
+
+#include "DataStructure/RCUSynchronizer.h"
+#include "Common/BasicDefines.h"
 
 typedef struct {
 
