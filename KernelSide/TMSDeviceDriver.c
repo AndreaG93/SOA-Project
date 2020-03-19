@@ -193,7 +193,7 @@ static int TMS_flush(struct file *file, fl_owner_t id) {
     minorDeviceNumber = iminor(file->f_inode);
 
     printk("'%s': 'TMS_flush' function is been called with minor number %d!\n", MODULE_NAME, minorDeviceNumber);
-    
+
     /*
     SemiLockFreeQueue *oldQueue;
     SemiLockFreeQueue *newQueue;
