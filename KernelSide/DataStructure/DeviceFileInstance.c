@@ -92,3 +92,12 @@ void registerSessionIntoDeviceFileInstance(DeviceFileInstance *input, Session *s
 
     spin_unlock(&input->activeSessionsSpinlock);
 }
+
+void unregisterSessionFromDeviceFileInstance(DeviceFileInstance *input, Session *session) {
+
+    spin_lock(&input->activeSessionsSpinlock);
+
+    removeRBTree(input->activeSessions, current->pid, NULL);
+
+    spin_unlock(&input->activeSessionsSpinlock);
+}

@@ -21,7 +21,7 @@ RBTree *allocateRBTree(void) {
     return kmalloc(sizeof(RBTree), GFP_KERNEL);
 }
 
-RBTreeNodeContent* allocateRBTreeNodeContent(unsigned long nodeID, void *data) {
+RBTreeNodeContent *allocateRBTreeNodeContent(unsigned long nodeID, void *data) {
 
     RBTreeNodeContent *output = kmalloc(sizeof(RBTreeNodeContent), GFP_KERNEL);
     if (output != NULL) {
@@ -109,7 +109,9 @@ void removeRBTree(RBTree *input, unsigned long nodeID, void (*freeFunction)(void
             currentNode = currentNode->rb_right;
         else {
 
-            (*freeFunction)(currentNodeContent->data);
+            if (freeFunction != NULL)
+                (*freeFunction)(currentNodeContent->data);
+
             rb_erase(&currentNodeContent->node, input);
 
             return;
@@ -136,7 +138,7 @@ void cleanRBTree(RBTree *input, void (*freeFunction)(void *)) {
     RBTreeNodeContent *currentNodeContent;
     struct rb_node *currentNode;
 
-    while(TRUE) {
+    while (TRUE) {
 
         currentNode = rb_first(input);
 

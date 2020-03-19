@@ -21,7 +21,7 @@
 #include "DataStructure/KObjectManagement.h"
 #include "DataStructure/DeviceFileInstance.h"
 
-#include "ModuleFunctions.h"
+#include "CleaningFunctions.h"
 #include "MessagesManagement.h"
 
 static RCUSynchronizer *DeviceFileInstanceRBTreeSynchronizer;
@@ -185,20 +185,15 @@ static ssize_t TMS_write(struct file *file, const char *userBuffer, size_t userB
     }
 }
 
-
-static int TMS_release(struct inode *inode, struct file *file) {
-
-    printk("'%s': 'TMS_release' function is been called!\n", MODULE_NAME);
-
-    freeSession(file->private_data);
-    file->private_data = NULL;
-
-    return 0;
-}
-
-
 static int TMS_flush(struct file *file, fl_owner_t id) {
 
+    //DeviceFileInstance *deviceFileInstance;
+    unsigned int minorDeviceNumber;
+
+    minorDeviceNumber = iminor(file->f_inode);
+
+    printk("'%s': 'TMS_flush' function is been called with minor number %d!\n", MODULE_NAME, minorDeviceNumber);
+    
     /*
     SemiLockFreeQueue *oldQueue;
     SemiLockFreeQueue *newQueue;
@@ -221,6 +216,25 @@ static int TMS_flush(struct file *file, fl_owner_t id) {
     freeSemiLockFreeQueue(oldQueue, &fullyRemoveMessage);
 */
     return SUCCESS;
+}
+
+static int TMS_release(struct inode *inode, struct file *file) {
+
+    DeviceFileInstance *deviceFileInstance;
+    unsigned int minorDeviceNumber;
+
+    minorDeviceNumber = iminor(file->f_inode);
+
+    printk("'%s': 'TMS_release' function is been called with minor number %d!\n", MODULE_NAME, minorDeviceNumber);
+
+    deviceFileInstance = getDeviceFileInstanceFromSynchronizer(DeviceFileInstanceRBTreeSynchronizer, minorDeviceNumber);
+
+    unregisterSessionFromDeviceFileInstance(deviceFileInstance, file->private_data);
+
+    freeSession(file->private_data);
+    file->private_data = NULL;
+
+    return 0;
 }
 
 static long TMS_unlocked_ioctl(struct file *file, unsigned int command, unsigned long parameter) {
@@ -299,7 +313,7 @@ int registerTMSDeviceDriver(void) {
 
 void unregisterTMSDeviceDriver(void) {
 
-    //fullyRemoveRBTreeSynchronizer(RBTreeSynchronizer);
+    fullRemoveDeviceFileInstanceRBTreeSynchronizer(DeviceFileInstanceRBTreeSynchronizer);
 
     unregister_chrdev(majorNumber, CHAR_DEVICE_NAME);
     printk("'%s': char device is been successfully unregistered!!\n", MODULE_NAME);

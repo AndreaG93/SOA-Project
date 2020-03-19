@@ -27,3 +27,5 @@ DeviceFileInstance *getDeviceFileInstanceFromSynchronizer(RCUSynchronizer *input
 void freeDeviceFileInstance(DeviceFileInstance *input);
 
 void registerSessionIntoDeviceFileInstance(DeviceFileInstance *input, Session *session);
+
+void unregisterSessionFromDeviceFileInstance(DeviceFileInstance *input, Session *session);
