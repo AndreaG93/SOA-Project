@@ -3,23 +3,26 @@
 #include <linux/kobject.h>
 #include <linux/spinlock_types.h>
 
-#include "KObjectManagementFunctions.h"
+#include "KObjectManagement.h"
 #include "RCUSynchronizer.h"
 #include "RBTree.h"
 
 typedef struct {
 
-    RCUSynchronizer* semiLockFreeQueueRCUSynchronizer;
+    RCUSynchronizer *semiLockFreeQueueRCUSynchronizer;
     RBTree *activeSessions;
     spinlock_t activeSessionsSpinlock;
     struct kobject *KObject;
 
 } DeviceFileInstance;
 
-DeviceFileInstance *allocateDeviceFileInstance(unsigned int minorDeviceNumber, KObjectManagementFunctions *functions);
+DeviceFileInstance *allocateDeviceFileInstance(unsigned int minorDeviceNumber,
+                                               ssize_t (*show)(struct kobject *, struct kobj_attribute *, char *),
+                                               ssize_t (*store)(struct kobject *, struct kobj_attribute *, const char *,
+                                                                size_t));
 
 DeviceFileInstance *getDeviceFileInstanceFromSynchronizer(RCUSynchronizer *input, unsigned int minorDeviceNumber);
 
-void freeDeviceFileInstance(DeviceFileInstance* input);
+void freeDeviceFileInstance(DeviceFileInstance *input);
 
-void registerSessionIntoDeviceFileInstance(DeviceFileInstance* input, Session *session);
+void registerSessionIntoDeviceFileInstance(DeviceFileInstance *input, Session *session);

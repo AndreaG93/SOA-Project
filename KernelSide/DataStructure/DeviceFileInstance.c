@@ -2,20 +2,25 @@
 #include <linux/spinlock_types.h>
 #include <linux/sched.h>
 
+#include "../Common/BasicDefines.h"
+
 #include "SemiLockFreeQueue.h"
-#include "KObjectManagementFunctions.h"
+#include "KObjectManagement.h"
 #include "RCUSynchronizer.h"
 #include "RBTree.h"
 #include "DeviceFileInstance.h"
 #include "Session.h"
 
-DeviceFileInstance *allocateDeviceFileInstance(unsigned int minorDeviceNumber, KObjectManagementFunctions *functions) {
+DeviceFileInstance *allocateDeviceFileInstance(unsigned int minorDeviceNumber,
+                                               ssize_t (*show)(struct kobject *, struct kobj_attribute *, char *),
+                                               ssize_t (*store)(struct kobject *, struct kobj_attribute *, const char *,
+                                                                size_t)) {
 
     DeviceFileInstance *output;
     SemiLockFreeQueue *outputSemiLockFreeQueue;
     RCUSynchronizer *outputRCUSynchronizer;
     RBTree *outputRBTree;
-    struct kobject* outputKObject;
+    struct kobject *outputKObject;
 
     output = kmalloc(sizeof(DeviceFileInstance), GFP_KERNEL);
     if (output == NULL)
@@ -38,7 +43,7 @@ DeviceFileInstance *allocateDeviceFileInstance(unsigned int minorDeviceNumber, K
         return NULL;
     }
 
-    outputKObject = allocateKObject(minorDeviceNumber, functions);
+    outputKObject = allocateKObject(convertIntToString(minorDeviceNumber), show, store);
     if (outputKObject == NULL) {
 
         freeSemiLockFreeQueue(outputSemiLockFreeQueue, NULL);
@@ -79,7 +84,7 @@ DeviceFileInstance *getDeviceFileInstanceFromSynchronizer(RCUSynchronizer *input
     return output;
 }
 
-void registerSessionIntoDeviceFileInstance(DeviceFileInstance* input, Session *session) {
+void registerSessionIntoDeviceFileInstance(DeviceFileInstance *input, Session *session) {
 
     spin_lock(&input->activeSessionsSpinlock);
 

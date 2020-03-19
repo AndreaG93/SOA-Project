@@ -18,86 +18,82 @@
 #include "DataStructure/RCUSynchronizer.h"
 #include "DataStructure/Message.h"
 #include "DataStructure/Session.h"
-#include "DataStructure/KObjectManagementFunctions.h"
+#include "DataStructure/KObjectManagement.h"
 #include "DataStructure/DeviceFileInstance.h"
 
 #include "ModuleFunctions.h"
 #include "MessagesManagement.h"
 
 static RCUSynchronizer *DeviceFileInstanceRBTreeSynchronizer;
-static int majorNumber;
+static unsigned int majorNumber;
 static struct kobject *kObjectParent;
-
-static KObjectManagementFunctions kObjectManagementFunctions;
-
+static struct file_operations TMSOperation;
 
 static ssize_t TMS_show(struct kobject *kobj, struct kobj_attribute *kObjAttribute, char *buf) {
 
-    SemiLockFreeQueue *queue;
-    RCUSynchronizer *queueSynchronizer;
-    ssize_t output;
-    int queueID;
+    SemiLockFreeQueue *semiLockFreeQueue;
+    RCUSynchronizer *semiLockFreeQueueSynchronizer;
+    DeviceFileInstance *deviceFileInstance;
+    unsigned int minorDeviceNumber;
     unsigned int epoch;
 
-    queueID = stringToLong(kobj->name);
+    minorDeviceNumber = stringToLong(kobj->name);
 
-    printk("'%s': 'TMS_show' function is been called managing 'SemiLockFreeQueue' with index %d!\n", MODULE_NAME,
-           queueID);
+    printk("'%s': 'TMS_show' function is been called! 'SemiLockFreeQueue' ID %d!\n", MODULE_NAME, minorDeviceNumber);
 
-    queueSynchronizer = getQueueRCUSynchronizer(RBTreeSynchronizer, queueID);
+    deviceFileInstance = getDeviceFileInstanceFromSynchronizer(DeviceFileInstanceRBTreeSynchronizer, minorDeviceNumber);
 
-    epoch = readLockRCUGettingEpoch(queueSynchronizer);
+    semiLockFreeQueueSynchronizer = deviceFileInstance->semiLockFreeQueueRCUSynchronizer;
 
-    queue = (SemiLockFreeQueue *) queueSynchronizer->RCUProtectedDataStructure;
+    epoch = readLockRCUGettingEpoch(semiLockFreeQueueSynchronizer);
+
+    semiLockFreeQueue = (SemiLockFreeQueue *) queueSynchronizer->RCUProtectedDataStructure;
 
     if (strcmp(kObjAttribute->attr.name, "max_message_size") == 0) {
-        output = sprintf(buf, "%ld\n", queue->maxMessageSize);
+        output = sprintf(buf, "%ld\n", semiLockFreeQueue->maxMessageSize);
     } else {
-        output = sprintf(buf, "%ld\n", queue->maxStorageSize);
+        output = sprintf(buf, "%ld\n", semiLockFreeQueue->maxStorageSize);
     }
 
-    readUnlockRCU(queueSynchronizer, epoch);
+    readUnlockRCU(semiLockFreeQueueSynchronizer, epoch);
 
     return output;
 }
 
 static ssize_t TMS_store(struct kobject *kobj, struct kobj_attribute *kObjAttribute, const char *buf, size_t count) {
 
-    SemiLockFreeQueue *queue;
-    RCUSynchronizer *queueSynchronizer;
-    int queueID;
+    SemiLockFreeQueue *semiLockFreeQueue;
+    RCUSynchronizer *semiLockFreeQueueSynchronizer;
+    DeviceFileInstance *deviceFileInstance;
+    unsigned int minorDeviceNumber;
 
-    queueID = stringToLong(kobj->name);
+    minorDeviceNumber = stringToLong(kobj->name);
 
-    printk("'%s': 'TMS_store' function is been called managing 'SemiLockFreeQueue' with index %d!\n", MODULE_NAME,
-           queueID);
+    printk("'%s': 'TMS_store' function is been called! 'SemiLockFreeQueue' ID %d!\n", MODULE_NAME, minorDeviceNumber);
 
-    queueSynchronizer = getQueueRCUSynchronizer(RBTreeSynchronizer, queueID);
+    deviceFileInstance = getDeviceFileInstanceFromSynchronizer(DeviceFileInstanceRBTreeSynchronizer, minorDeviceNumber);
 
-    writeLockRCU(queueSynchronizer);
+    semiLockFreeQueueSynchronizer = deviceFileInstance->semiLockFreeQueueRCUSynchronizer;
 
-    queue = (SemiLockFreeQueue *) queueSynchronizer->RCUProtectedDataStructure;
+    writeLockRCU(semiLockFreeQueueSynchronizer);
+
+    semiLockFreeQueue = (SemiLockFreeQueue *) queueSynchronizer->RCUProtectedDataStructure;
 
     if (strcmp(kObjAttribute->attr.name, "max_message_size") == 0) {
-        sscanf(buf, "%ldu", &(queue->maxMessageSize));
+        sscanf(buf, "%ldu", &(semiLockFreeQueue->maxMessageSize));
     } else {
-        sscanf(buf, "%ldu", &(queue->maxStorageSize));
+        sscanf(buf, "%ldu", &(semiLockFreeQueue->maxStorageSize));
     }
 
-    printk("'%s': 'maxMessageSize' variable of 'SemiLockFreeQueue' with index %d is now %ld!\n", MODULE_NAME, queueID,
-           queue->maxMessageSize);
-    printk("'%s': 'maxStorageSize' variable of 'SemiLockFreeQueue' with index %d is now %ld!\n", MODULE_NAME, queueID,
-           queue->maxStorageSize);
+    printk("'%s': 'maxMessageSize' variable of 'SemiLockFreeQueue' with index %d is now %ld!\n", MODULE_NAME,
+           minorDeviceNumber, semiLockFreeQueue->maxMessageSize);
+    printk("'%s': 'maxStorageSize' variable of 'SemiLockFreeQueue' with index %d is now %ld!\n", MODULE_NAME,
+           minorDeviceNumber, semiLockFreeQueue->maxStorageSize);
 
-    writeUnlockRCU(queueSynchronizer, queueSynchronizer->RCUProtectedDataStructure);
+    writeUnlockRCU(semiLockFreeQueueSynchronizer, semiLockFreeQueueSynchronizer->RCUProtectedDataStructure);
 
     return count;
 }
-
-static KObjectManagementFunctions kObjectManagementFunctions = {
-        store: TMS_store,
-        show: TMS_show
-};
 
 static int TMS_open(struct inode *inode, struct file *file) {
 
@@ -114,19 +110,22 @@ static int TMS_open(struct inode *inode, struct file *file) {
 
         writeLockRCU(DeviceFileInstanceRBTreeSynchronizer);
 
-        deviceFileInstance = searchRBTree(DeviceFileInstanceRBTreeSynchronizer->RCUProtectedDataStructure, minorDeviceNumber);
+        deviceFileInstance = searchRBTree(DeviceFileInstanceRBTreeSynchronizer->RCUProtectedDataStructure,
+                                          minorDeviceNumber);
 
         if (deviceFileInstance != NULL)
-            writeUnlockRCU(DeviceFileInstanceRBTreeSynchronizer, DeviceFileInstanceRBTreeSynchronizer->RCUProtectedDataStructure);
+            writeUnlockRCU(DeviceFileInstanceRBTreeSynchronizer,
+                           DeviceFileInstanceRBTreeSynchronizer->RCUProtectedDataStructure);
         else {
 
             RBTree *newRBTree;
             RBTree *oldRBTree;
 
-            deviceFileInstance = allocateDeviceFileInstance(minorDeviceNumber, NULL);
+            deviceFileInstance = allocateDeviceFileInstance(minorDeviceNumber, &TMS_show, &TMS_store);
             if (deviceFileInstance == NULL) {
 
-                writeUnlockRCU(DeviceFileInstanceRBTreeSynchronizer, DeviceFileInstanceRBTreeSynchronizer->RCUProtectedDataStructure);
+                writeUnlockRCU(DeviceFileInstanceRBTreeSynchronizer,
+                               DeviceFileInstanceRBTreeSynchronizer->RCUProtectedDataStructure);
                 return FAILURE;
 
             } else {
@@ -157,7 +156,8 @@ static ssize_t TMS_read(struct file *file, char *userBuffer, size_t userBufferSi
 
     if (session->dequeueDelay > 0) {
 
-        printk("'%s': 'TMS_read' function is been called with 'SET_RECV_TIMEOUT' command (%lu)!\n", MODULE_NAME, session->dequeueDelay);
+        printk("'%s': 'TMS_read' function is been called with 'SET_RECV_TIMEOUT' command (%lu)!\n", MODULE_NAME,
+               session->dequeueDelay);
         return SUCCESS;
 
     } else {
@@ -176,7 +176,8 @@ static ssize_t TMS_write(struct file *file, const char *userBuffer, size_t userB
 
     if (session->enqueueDelay > 0) {
 
-        printk("'%s': 'TMS_write' function is been called with 'SET_SEND_TIMEOUT' command (%lu)!\n", MODULE_NAME, session->enqueueDelay);
+        printk("'%s': 'TMS_write' function is been called with 'SET_SEND_TIMEOUT' command (%lu)!\n", MODULE_NAME,
+               session->enqueueDelay);
         /*
         operation = kmalloc(sizeof(DelayedEnqueueMessageOperation), GFP_KERNEL);
         if (operation == NULL)
@@ -268,16 +269,16 @@ static long TMS_unlocked_ioctl(struct file *file, unsigned int command, unsigned
     return SUCCESS;
 }
 
-static struct file_operations TMSOperation = {
-        read: TMS_read,
-        write: TMS_write,
-        open: TMS_open,
-        release: TMS_release,
-        unlocked_ioctl: TMS_unlocked_ioctl,
-        flush: TMS_flush
-};
-
 int registerTMSDeviceDriver(void) {
+
+    TMSOperation = {
+            read: TMS_read,
+            write: TMS_write,
+            open: TMS_open,
+            release: TMS_release,
+            unlocked_ioctl: TMS_unlocked_ioctl,
+            flush: TMS_flush
+    };
 
     majorNumber = register_chrdev(0, CHAR_DEVICE_NAME, &TMSOperation);
     if (majorNumber < 0) {
