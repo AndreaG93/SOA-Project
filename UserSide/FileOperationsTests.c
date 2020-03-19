@@ -8,57 +8,40 @@
 
 void readTest() {
 
-    /*
-    char *inputMessageBuffer = calloc(30, sizeof(char));
-    if (inputMessageBuffer == NULL)
+    int fileDescriptor;
+    char *buffer1;
+    char *buffer2;
+
+    buffer1 = calloc(6, sizeof(char));
+    if (buffer1 == NULL)
         exit(EXIT_FAILURE);
 
-    char *outputMessageBuffer = calloc(30, sizeof(char));
-    if (outputMessageBuffer == NULL)
+    buffer2 = calloc(4, sizeof(char));
+    if (buffer2 == NULL)
         exit(EXIT_FAILURE);
-*/
 
     errno = 0;
-    int fileDescriptor = open("/dev/TMS1", O_RDWR);
+    fileDescriptor = open("/dev/TMS1", O_RDWR);
     if (fileDescriptor == -1) {
 
         fprintf(stderr, "[ERROR] %s", strerror(errno));
         exit(EXIT_FAILURE);
-
     }
 
-    ioctl(fileDescriptor, 1, 1);
-    fprintf(stderr, "URRA...");
+    if (write(fileDescriptor, &"Andrea", 6) == -1)
+        exit(EXIT_FAILURE);
+
+    if (write(fileDescriptor, &"Riko", 4) == -1)
+        exit(EXIT_FAILURE);
+
+    if (read(fileDescriptor, buffer1, 6) == -1)
+        exit(EXIT_FAILURE);
+
+    if (read(fileDescriptor, buffer2, 4) == -1)
+        exit(EXIT_FAILURE);
+
+    fprintf(stderr, "Message 1 read: %s\n", buffer1);
+    fprintf(stderr, "Message 2 read: %s\n", buffer2);
+
     close(fileDescriptor);
-
-    /*
-    errno = 0;
-    if (ioctl(fileDescriptor, 5, 1000) != 0){
-
-        fprintf(stderr, "[ERROR] %s", strerror(errno));
-        exit(EXIT_FAILURE);
-    }
-
-    strcpy(inputMessageBuffer, "Riko");
-    if (write(fileDescriptor, inputMessageBuffer, 30) == -1)
-        exit(EXIT_FAILURE);
-
-    strcpy(inputMessageBuffer, "Andrea");
-    if (write(fileDescriptor, inputMessageBuffer, 30) == -1)
-        exit(EXIT_FAILURE);
-
-    if (read(fileDescriptor, outputMessageBuffer, 30) == -1)
-        exit(EXIT_FAILURE);
-
-    fprintf(stderr, "Message read: %s\n", outputMessageBuffer);
-
-    if (read(fileDescriptor, outputMessageBuffer, 30) == -1)
-        exit(EXIT_FAILURE);
-
-    fprintf(stderr, "Message read: %s\n", outputMessageBuffer);
-
-    free(inputMessageBuffer);
-    free(outputMessageBuffer);
-*/
-
 }
