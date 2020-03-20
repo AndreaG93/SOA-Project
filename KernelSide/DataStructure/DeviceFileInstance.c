@@ -1,6 +1,7 @@
 #include <linux/kobject.h>
 #include <linux/spinlock_types.h>
 #include <linux/sched.h>
+#include <linux/wait.h>
 
 #include "../Common/BasicOperations.h"
 
@@ -11,7 +12,7 @@
 #include "DeviceFileInstance.h"
 #include "Session.h"
 
-DeviceFileInstance *allocateDeviceFileInstance(unsigned int minorDeviceNumber, struct kobject* parentKObject,
+DeviceFileInstance *allocateDeviceFileInstance(unsigned int minorDeviceNumber, struct kobject *parentKObject,
                                                ssize_t (*show)(struct kobject *, struct kobj_attribute *, char *),
                                                ssize_t (*store)(struct kobject *, struct kobj_attribute *, const char *,
                                                                 size_t)) {
@@ -20,6 +21,7 @@ DeviceFileInstance *allocateDeviceFileInstance(unsigned int minorDeviceNumber, s
     SemiLockFreeQueue *outputSemiLockFreeQueue;
     RCUSynchronizer *outputRCUSynchronizer;
     RBTree *outputRBTree;
+
     struct kobject *outputKObject;
 
     output = kmalloc(sizeof(DeviceFileInstance), GFP_KERNEL);
@@ -64,10 +66,11 @@ DeviceFileInstance *allocateDeviceFileInstance(unsigned int minorDeviceNumber, s
         return NULL;
     }
 
-    spin_lock_init(&output->activeSessionsSpinlock);
     output->activeSessions = outputRBTree;
     output->semiLockFreeQueueRCUSynchronizer = outputRCUSynchronizer;
     output->KObject = outputKObject;
+
+    spin_lock_init(&output->activeSessionsSpinlock);
 
     return output;
 }

@@ -100,6 +100,8 @@ static ssize_t TMS_store(struct kobject *kobj, struct kobj_attribute *kObjAttrib
     return count;
 }
 
+static char flag;
+
 static int TMS_open(struct inode *inode, struct file *file) {
 
     DeviceFileInstance *deviceFileInstance;
@@ -168,7 +170,13 @@ static ssize_t TMS_read(struct file *file, char *userBuffer, size_t userBufferSi
 
         printk("'%s': 'TMS_read' function is been called with 'SET_RECV_TIMEOUT' command (%lu)!\n", MODULE_NAME,
                session->dequeueDelay);
-        return SUCCESS;
+
+        flag='f';
+
+        add_wait_queue(session->waitQueueHead, session->delayedDequeueOperation);
+        wait_event_timeout(*session->waitQueueHead,flag=='n',session->dequeueDelay);
+
+        return dequeueMessage(session->queueSynchronizer, userBuffer, userBufferSize);
 
     } else {
 
@@ -322,6 +330,7 @@ int registerTMSDeviceDriver(void) {
         isModuleActive = TRUE;
 
         printk("'%s': char device is been successfully registered with major number %d!\n", MODULE_NAME, majorNumber);
+
 
         return SUCCESS;
     }

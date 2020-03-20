@@ -1,5 +1,7 @@
 #pragma once
 
+#include <linux/wait.h>
+
 #include "RCUSynchronizer.h"
 #include "RBTree.h"
 
@@ -7,20 +9,18 @@ typedef struct {
 
     RCUSynchronizer *queueSynchronizer;
 
-    unsigned long delayedEnqueueOperationsIndex;
-    unsigned long delayedDequeueOperationsIndex;
-
-    RBTree *delayedEnqueueOperations;
-    RBTree *delayedDequeueOperations;
-
-    spinlock_t delayedEnqueueOperationsSpinlock;
-    spinlock_t delayedDequeueOperationsSpinlock;
-
     unsigned long enqueueDelay;
     unsigned long dequeueDelay;
 
-} Session;
+    RBTree *delayedEnqueueOperations;
+    spinlock_t delayedEnqueueOperationsSpinlock;
 
+    struct wait_queue_head *waitQueueHead;
+    struct wait_queue_entry *delayedDequeueOperation;
+
+    unsigned long delayedEnqueueOperationsIndex;
+
+} Session;
 
 
 Session *allocateSession(RCUSynchronizer *queueSynchronizer);

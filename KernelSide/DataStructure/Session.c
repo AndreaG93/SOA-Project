@@ -1,5 +1,7 @@
 #include <linux/slab.h>
 #include <linux/workqueue.h>
+#include <linux/wait.h>
+#include <linux/sched.h>
 
 #include "Session.h"
 #include "RCUSynchronizer.h"
@@ -8,39 +10,51 @@
 Session *allocateSession(RCUSynchronizer *queueSynchronizer) {
 
     Session *output;
-    RBTree *delayedEnqueueOperations;
-    RBTree *delayedDequeueOperations;
+    RBTree *outputDelayedEnqueueOperations;
+    struct wait_queue_head *outputWaitQueueHead;
+    struct wait_queue_entry *outputDelayedDequeueOperation;
 
     output = kmalloc(sizeof(Session), GFP_KERNEL);
     if (output == NULL)
         return NULL;
 
-    delayedEnqueueOperations = allocateRBTree();
-    if (delayedEnqueueOperations == NULL) {
+    outputWaitQueueHead = kmalloc(sizeof(struct wait_queue_head), GFP_KERNEL);
+    if (outputWaitQueueHead == NULL) {
 
         kfree(output);
         return NULL;
     }
 
-    delayedDequeueOperations = allocateRBTree();
-    if (delayedDequeueOperations == NULL) {
+    outputDelayedDequeueOperation = kmalloc(sizeof(struct wait_queue_entry), GFP_KERNEL);
+    if (outputDelayedDequeueOperation == NULL) {
 
-        kfree(delayedEnqueueOperations);
+        kfree(outputWaitQueueHead);
         kfree(output);
         return NULL;
     }
 
-    spin_lock_init(&output->delayedDequeueOperationsSpinlock);
+    outputDelayedEnqueueOperations = allocateRBTree();
+    if (outputDelayedEnqueueOperations == NULL) {
+
+        kfree(outputDelayedDequeueOperation);
+        kfree(outputWaitQueueHead);
+        kfree(output);
+        return NULL;
+    }
+
+    init_waitqueue_head(outputWaitQueueHead);
+    init_waitqueue_entry(outputDelayedDequeueOperation, current);
+
     spin_lock_init(&output->delayedEnqueueOperationsSpinlock);
 
     output->dequeueDelay = 0;
     output->enqueueDelay = 0;
 
     output->queueSynchronizer = queueSynchronizer;
-    output->delayedDequeueOperations = delayedDequeueOperations;
-    output->delayedEnqueueOperations = delayedEnqueueOperations;
+    output->delayedDequeueOperation = outputDelayedDequeueOperation;
+    output->delayedEnqueueOperations = outputDelayedEnqueueOperations;
+    output->waitQueueHead = outputWaitQueueHead;
 
-    output->delayedDequeueOperationsIndex = 0;
     output->delayedEnqueueOperationsIndex = 0;
 
     return output;
@@ -48,14 +62,10 @@ Session *allocateSession(RCUSynchronizer *queueSynchronizer) {
 
 void freeSession(Session *input) {
 
-    spin_lock(&input->delayedEnqueueOperationsSpinlock);
-    spin_lock(&input->delayedDequeueOperationsSpinlock);
-
     freeRBTreeContentIncluded(input->delayedEnqueueOperations, NULL);
-    freeRBTreeContentIncluded(input->delayedDequeueOperations, NULL);
 
-    spin_unlock(&input->delayedDequeueOperationsSpinlock);
-    spin_unlock(&input->delayedEnqueueOperationsSpinlock);
+    kfree(input->delayedDequeueOperation);
+    kfree(input->waitQueueHead);
 
     kfree(input);
 }
