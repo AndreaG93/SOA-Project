@@ -93,13 +93,14 @@ void *searchRBTree(RBTree *input, unsigned long nodeID) {
     return output;
 }
 
-void performFunctionRBTree(RBTree *input, void (*function)(void *)) {
+void performFunctionRBTree(RBTree *input, void (*function_A)(void *), void (*function_B)(void *)) {
 
     struct rb_node *currentNode;
     for (currentNode = rb_first(input); currentNode; currentNode = rb_next(currentNode)) {
 
         RBTreeNodeContent *currentNodeContent = container_of(currentNode, RBTreeNodeContent, node);
-        (*function)(currentNodeContent->data);
+        (*function_A)(currentNodeContent->data);
+        (*function_B)(currentNodeContent->data);
     }
 }
 

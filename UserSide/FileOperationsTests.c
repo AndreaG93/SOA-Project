@@ -38,7 +38,7 @@ void enqueueDequeueTest() {
 
 
     fileDescriptor = open("/dev/TMS1", O_RDWR);
-    if (fileDescriptor != 0) {
+    if (fileDescriptor == -1) {
 
         fprintf(stderr, "[ERROR] Error code %d", fileDescriptor);
         exit(EXIT_FAILURE);
@@ -111,6 +111,35 @@ void failedDelayedEnqueueDequeueTest() {
 
     if (write(fileDescriptor, &"Andrea", 6) == -1)
         exit(EXIT_FAILURE);
+
+    close(fileDescriptor);
+}
+
+void delayedDequeueTest() {
+
+    int fileDescriptor;
+    char *buffer1;
+
+    buffer1 = calloc(6, sizeof(char));
+    if (buffer1 == NULL)
+        exit(EXIT_FAILURE);
+
+    fileDescriptor = open("/dev/TMS1", O_RDWR);
+    if (fileDescriptor == -1) {
+
+        fprintf(stderr, "[ERROR] Error code %d", fileDescriptor);
+        exit(EXIT_FAILURE);
+    }
+
+    if (write(fileDescriptor, &"Chika", 6) == -1)
+        exit(EXIT_FAILURE);
+
+    ioctl(fileDescriptor, 6, 2000);
+
+    if (read(fileDescriptor, buffer1, 6) == -1)
+        exit(EXIT_FAILURE);
+
+    fprintf(stderr, "Message 1 read: %s\n", buffer1);
 
     close(fileDescriptor);
 }

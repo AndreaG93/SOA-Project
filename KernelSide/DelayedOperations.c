@@ -1,5 +1,7 @@
 #include <linux/workqueue.h>
 #include <linux/slab.h>
+#include <linux/wait.h>
+#include <linux/sched.h>
 
 #include "DelayedOperations.h"
 #include "DataStructure/Session.h"
@@ -78,4 +80,15 @@ void revokeAllDelayedEnqueueOperations(Session *input) {
 
 void revokeAllDelayedEnqueueOperationsVoid(void *input) {
     revokeAllDelayedEnqueueOperations((Session *) input);
+}
+
+void revokeAllDelayedDequeueOperationsVoid(void *input) {
+
+    Session* session;
+
+    session = (Session *) input;
+
+    session->wakeUpFlag = WAKE_UP_FLAG;
+
+    wake_up(session->waitQueueHead);
 }

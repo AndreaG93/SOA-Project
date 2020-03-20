@@ -5,6 +5,9 @@
 
 #define FAILURE 1
 
+#define WAKE_UP_FLAG 1
+#define NOT_WAKE_UP_FLAG 0
+
 #define DEFAULT_MAX_MESSAGE_SIZE 50
 #define DEFAULT_MAX_STORAGE_SIZE 30
 

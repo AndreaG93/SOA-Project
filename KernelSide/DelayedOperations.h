@@ -24,3 +24,5 @@ void unregisterDelayedEnqueueOperation(DelayedEnqueueOperation* operation);
 void revokeAllDelayedEnqueueOperations(Session *input);
 
 void revokeAllDelayedEnqueueOperationsVoid(void *input);
+
+void revokeAllDelayedDequeueOperationsVoid(void *input);

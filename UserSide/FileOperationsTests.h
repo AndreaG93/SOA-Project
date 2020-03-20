@@ -7,3 +7,5 @@ void enqueueDequeueTest();
 void delayedEnqueueDequeueTest();
 
 void failedDelayedEnqueueDequeueTest();
+
+void delayedDequeueTest();

@@ -22,4 +22,4 @@ void freeRBTreeContentIncluded(RBTree *input, void (*freeFunction)(void *));
 
 RBTree* copyRBTree(RBTree *input);
 
-void performFunctionRBTree(RBTree *input, void (*function)(void *));
+void performFunctionRBTree(RBTree *input, void (*function_A)(void *), void (*function_B)(void *));

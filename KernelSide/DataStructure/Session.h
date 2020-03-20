@@ -17,6 +17,7 @@ typedef struct {
 
     struct wait_queue_head *waitQueueHead;
     struct wait_queue_entry *delayedDequeueOperation;
+    unsigned int wakeUpFlag;
 
     unsigned long delayedEnqueueOperationsIndex;
 

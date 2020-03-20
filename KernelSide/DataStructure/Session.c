@@ -3,6 +3,7 @@
 #include <linux/wait.h>
 #include <linux/sched.h>
 
+#include "../Common/BasicDefines.h"
 #include "Session.h"
 #include "RCUSynchronizer.h"
 #include "RBTree.h"
@@ -56,6 +57,8 @@ Session *allocateSession(RCUSynchronizer *queueSynchronizer) {
     output->waitQueueHead = outputWaitQueueHead;
 
     output->delayedEnqueueOperationsIndex = 0;
+
+    output->wakeUpFlag = NOT_WAKE_UP_FLAG;
 
     return output;
 }

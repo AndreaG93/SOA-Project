@@ -16,5 +16,9 @@ int main() {
     fprintf(stderr, "Start 'failedDelayedEnqueueDequeueTest'...\n");
     failedDelayedEnqueueDequeueTest();
 */
+
+    fprintf(stderr, "Start 'delayedDequeueTest'...\n");
+    delayedDequeueTest();
+
     return 0;
 }
