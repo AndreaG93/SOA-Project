@@ -103,7 +103,7 @@ void failedDelayedEnqueueDequeueTest() {
     fileDescriptor = open("/dev/TMS2", O_RDWR);
     if (fileDescriptor == -1) {
 
-        fprintf(stderr, "[ERROR] Error 55 code %d", fileDescriptor);
+        fprintf(stderr, "[ERROR] Error code %d", fileDescriptor);
         exit(EXIT_FAILURE);
     }
 

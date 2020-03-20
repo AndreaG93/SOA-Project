@@ -25,9 +25,13 @@
 #include "CleaningFunctions.h"
 #include "MessagesManagement.h"
 
+
 static RCUSynchronizer *DeviceFileInstanceRBTreeSynchronizer;
 static unsigned int majorNumber;
 static struct kobject *kObjectParent;
+
+static unsigned long currentActiveSessions;
+static unsigned char isModuleActive;
 
 static ssize_t TMS_show(struct kobject *kobj, struct kobj_attribute *kObjAttribute, char *buf) {
 
@@ -100,6 +104,11 @@ static int TMS_open(struct inode *inode, struct file *file) {
 
     DeviceFileInstance *deviceFileInstance;
     unsigned int minorDeviceNumber;
+
+    if (!isModuleActive)
+        return FAILURE;
+    else
+        __sync_add_and_fetch(&currentActiveSessions, 1);
 
     minorDeviceNumber = iminor(file->f_inode);
 
@@ -232,7 +241,9 @@ static int TMS_release(struct inode *inode, struct file *file) {
     freeSession(file->private_data);
     file->private_data = NULL;
 
-    return 0;
+    __sync_sub_and_fetch(&currentActiveSessions, 1);
+
+    return SUCCESS;
 }
 
 static long TMS_unlocked_ioctl(struct file *file, unsigned int command, unsigned long parameter) {
@@ -307,6 +318,8 @@ int registerTMSDeviceDriver(void) {
         }
 
         kObjectParent = kobject_create_and_add("TSM", kernel_kobj);
+        currentActiveSessions = 0;
+        isModuleActive = TRUE;
 
         printk("'%s': char device is been successfully registered with major number %d!\n", MODULE_NAME, majorNumber);
 
@@ -315,6 +328,12 @@ int registerTMSDeviceDriver(void) {
 }
 
 void unregisterTMSDeviceDriver(void) {
+
+    isModuleActive = FALSE;
+
+    asm volatile("mfence");
+
+    while (currentActiveSessions > 0);
 
     fullRemoveDeviceFileInstanceRBTreeSynchronizer(DeviceFileInstanceRBTreeSynchronizer);
 
