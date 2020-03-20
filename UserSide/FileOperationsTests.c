@@ -143,3 +143,49 @@ void delayedDequeueTest() {
 
     close(fileDescriptor);
 }
+
+void cancelledDelayedDequeueTest() {
+
+    int fileDescriptor;
+    char *buffer;
+
+    int output = fork();
+
+    if (output == 0) {
+
+        buffer = calloc(6, sizeof(char));
+        if (buffer == NULL)
+            exit(EXIT_FAILURE);
+
+        fileDescriptor = open("/dev/TMS1", O_RDWR);
+        if (fileDescriptor == -1) {
+
+            fprintf(stderr, "[ERROR] Error code %d", fileDescriptor);
+            exit(EXIT_FAILURE);
+        }
+
+        if (write(fileDescriptor, &"Chika", 6) == -1)
+            exit(EXIT_FAILURE);
+
+        ioctl(fileDescriptor, 6, 10000);
+
+        if (read(fileDescriptor, buffer, 6) == -1)
+            exit(EXIT_FAILURE);
+
+        fprintf(stderr, "Message 1 read: %s\n", buffer);
+
+    } else {
+
+
+        fileDescriptor = open("/dev/TMS1", O_RDWR);
+        if (fileDescriptor == -1) {
+
+            fprintf(stderr, "[ERROR] Error code %d", fileDescriptor);
+            exit(EXIT_FAILURE);
+        }
+
+        sleep(2);
+    }
+
+    close(fileDescriptor);
+}

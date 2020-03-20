@@ -9,3 +9,5 @@ void delayedEnqueueDequeueTest();
 void failedDelayedEnqueueDequeueTest();
 
 void delayedDequeueTest();
+
+void cancelledDelayedDequeueTest();

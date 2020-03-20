@@ -112,7 +112,7 @@ static int TMS_open(struct inode *inode, struct file *file) {
 
     minorDeviceNumber = iminor(file->f_inode);
 
-    printk("'%s': 'TMS_open' function is been called with minor number %d!\n", MODULE_NAME, minorDeviceNumber);
+    printk("'%s': 'TMS_open' function is been called with minor number %d --> PID %d!\n", MODULE_NAME, minorDeviceNumber, current->pid);
 
     deviceFileInstance = getDeviceFileInstanceFromSynchronizer(DeviceFileInstanceRBTreeSynchronizer, minorDeviceNumber);
 
