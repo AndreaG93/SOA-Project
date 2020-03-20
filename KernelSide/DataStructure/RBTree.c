@@ -93,7 +93,17 @@ void *searchRBTree(RBTree *input, unsigned long nodeID) {
     return output;
 }
 
-void removeRBTree(RBTree *input, unsigned long nodeID, void (*freeFunction)(void *)) {
+void performFunctionRBTree(RBTree *input, void (*function)(void *)) {
+
+    struct rb_node *currentNode;
+    for (currentNode = rb_first(input); currentNode; currentNode = rb_next(currentNode)) {
+
+        RBTreeNodeContent *currentNodeContent = container_of(currentNode, RBTreeNodeContent, node);
+        (*function)(currentNodeContent->data);
+    }
+}
+
+DriverError removeRBTree(RBTree *input, unsigned long nodeID, void (*freeFunction)(void *)) {
 
     struct rb_node *currentNode;
 
@@ -114,9 +124,11 @@ void removeRBTree(RBTree *input, unsigned long nodeID, void (*freeFunction)(void
 
             rb_erase(&currentNodeContent->node, input);
 
-            return;
+            return SUCCESS;
         }
     }
+
+    return ERR_NOT_FOUND;
 }
 
 RBTree *copyRBTree(RBTree *input) {

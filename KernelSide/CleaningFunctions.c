@@ -43,4 +43,20 @@ void fullRemoveDeviceFileInstanceRBTreeSynchronizer(RCUSynchronizer *input) {
     kfree(input);
 }
 
+void cleanQueue(Session* session) {
 
+  SemiLockFreeQueue *oldQueue;
+  SemiLockFreeQueue *newQueue;
+  RCUSynchronizer *queueSynchronizer;
+
+  queueSynchronizer = session->queueSynchronizer;
+
+  writeLockRCU(queueSynchronizer);
+
+  oldQueue = queueSynchronizer->RCUProtectedDataStructure;
+  newQueue = allocateSemiLockFreeQueue(oldQueue->maxMessageSize, oldQueue->maxStorageSize);
+
+  writeUnlockRCU(queueSynchronizer, newQueue);
+
+  freeSemiLockFreeQueue(oldQueue, &fullRemoveMessage);
+}

@@ -3,15 +3,18 @@
 
 int main() {
 
+    /*
     fprintf(stderr, "Start 'emptyTest'...\n");
     emptyTest();
 
-    return 0;
     fprintf(stderr, "Start 'enqueueDequeueTest'...\n");
     enqueueDequeueTest();
 
     fprintf(stderr, "Start 'delayedEnqueueDequeueTest'...\n");
     delayedEnqueueDequeueTest();
+*/
+    fprintf(stderr, "Start 'failedDelayedEnqueueDequeueTest'...\n");
+    failedDelayedEnqueueDequeueTest();
 
     return 0;
 }

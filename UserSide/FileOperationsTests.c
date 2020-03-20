@@ -3,7 +3,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
-#include <errno.h>
 #include <sys/ioctl.h>
 
 
@@ -11,16 +10,14 @@ void emptyTest() {
 
     int fileDescriptor;
 
-    errno = 0;
-    fileDescriptor = open("/dev/TMS1", O_RDWR);
-    if (fileDescriptor == -1) {
+    fileDescriptor = open("/dev/TMS0", O_RDWR);
+    if (fileDescriptor != 0) {
 
-        fprintf(stderr, "[ERROR] %s", strerror(errno));
+        fprintf(stderr, "[ERROR] Error code %d", fileDescriptor);
         exit(EXIT_FAILURE);
     }
 
-    errno = 0;
-    fprintf(stderr, "Error code: %lu, %du\n", read(fileDescriptor, NULL, 10), errno);
+    fprintf(stderr, "Error code: %lu!\n", read(fileDescriptor, NULL, 10));
 
     close(fileDescriptor);
 }
@@ -39,11 +36,11 @@ void enqueueDequeueTest() {
     if (buffer2 == NULL)
         exit(EXIT_FAILURE);
 
-    errno = 0;
-    fileDescriptor = open("/dev/TMS1", O_RDWR);
-    if (fileDescriptor == -1) {
 
-        fprintf(stderr, "[ERROR] %s", strerror(errno));
+    fileDescriptor = open("/dev/TMS1", O_RDWR);
+    if (fileDescriptor != 0) {
+
+        fprintf(stderr, "[ERROR] Error code %d", fileDescriptor);
         exit(EXIT_FAILURE);
     }
 
@@ -76,25 +73,44 @@ void delayedEnqueueDequeueTest() {
     if (buffer1 == NULL)
         exit(EXIT_FAILURE);
 
-    errno = 0;
     fileDescriptor = open("/dev/TMS2", O_RDWR);
     if (fileDescriptor == -1) {
 
-        fprintf(stderr, "[ERROR] %s", strerror(errno));
+        fprintf(stderr, "[ERROR] Error 55 code %d", fileDescriptor);
         exit(EXIT_FAILURE);
     }
 
-    ioctl(fileDescriptor, 5, 2000);
+    ioctl(fileDescriptor, 5, 1000);
 
     if (write(fileDescriptor, &"Andrea", 6) == -1)
         exit(EXIT_FAILURE);
 
-    while(1);
-    //output = read(fileDescriptor, buffer1, 6);
+    while (1) {
+        output = read(fileDescriptor, buffer1, 6);
+        if (output == 0)
+            break;
+    }
 
+    fprintf(stderr, "Message 1 read: %s\n", buffer1);
 
+    close(fileDescriptor);
+}
 
-    //fprintf(stderr, "Message 1 read: %s\n", buffer1);
+void failedDelayedEnqueueDequeueTest() {
+
+    int fileDescriptor;
+
+    fileDescriptor = open("/dev/TMS2", O_RDWR);
+    if (fileDescriptor == -1) {
+
+        fprintf(stderr, "[ERROR] Error 55 code %d", fileDescriptor);
+        exit(EXIT_FAILURE);
+    }
+
+    ioctl(fileDescriptor, 5, 1000);
+
+    if (write(fileDescriptor, &"Andrea", 6) == -1)
+        exit(EXIT_FAILURE);
 
     close(fileDescriptor);
 }

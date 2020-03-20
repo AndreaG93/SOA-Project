@@ -5,3 +5,5 @@ void emptyTest();
 void enqueueDequeueTest();
 
 void delayedEnqueueDequeueTest();
+
+void failedDelayedEnqueueDequeueTest();

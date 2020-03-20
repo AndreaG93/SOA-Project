@@ -12,7 +12,7 @@ DriverError insertRBTree(RBTree *input, unsigned long nodeID, void *data);
 
 void *searchRBTree(RBTree *input, unsigned long nodeID);
 
-void removeRBTree(RBTree *input, unsigned long nodeID, void (*freeFunction)(void *));
+DriverError removeRBTree(RBTree *input, unsigned long nodeID, void (*freeFunction)(void *));
 
 void cleanRBTree(RBTree *input, void (*freeFunction)(void *));
 
@@ -21,3 +21,5 @@ void freeRBTreeContentExcluded(RBTree *input);
 void freeRBTreeContentIncluded(RBTree *input, void (*freeFunction)(void *));
 
 RBTree* copyRBTree(RBTree *input);
+
+void performFunctionRBTree(RBTree *input, void (*function)(void *));

@@ -1,7 +1,9 @@
 #include <linux/workqueue.h>
 #include <linux/slab.h>
 
+
 #include "MessagesManagement.h"
+#include "DelayedOperations.h"
 
 #include "Common/BasicDefines.h"
 
@@ -22,14 +24,14 @@ DriverError enqueueMessage(RCUSynchronizer* queueSynchronizer, const char *userB
     queue = (SemiLockFreeQueue *) queueSynchronizer->RCUProtectedDataStructure;
 
     if (userBufferSize > queue->maxMessageSize)
-        output = -FAILURE;
+        output = ERR_MESSAGE_TOO_BIG;
     else {
 
         message = allocateMessage(userBuffer, userBufferSize);
         if (message == NULL)
-            output = ALLOCATION_ERR;
+            output = ERR_ALLOCATION_FAILED;
         else {
-
+            
             output = enqueue(queue, message, message->size);
 
             if (output == FAILURE)
@@ -54,7 +56,7 @@ DriverError dequeueMessage(RCUSynchronizer* queueSynchronizer, void *userBuffer,
 
     message = dequeue(queue, &getMessageSize);
     if (message == NULL)
-        output = EMPTY_QUEUE_ERR;
+        output = ERR_EMPTY_QUEUE;
     else {
 
         output = copyMessageToUserBuffer(message, userBuffer, userBufferSize);
@@ -65,35 +67,30 @@ DriverError dequeueMessage(RCUSynchronizer* queueSynchronizer, void *userBuffer,
     return output;
 }
 
-void performDelayedEnqueueOperation(struct work_struct *input) {
+void performDelayedMessageEnqueue(struct work_struct *input) {
 
-    /*struct delayed_work *delayedWork;
+    struct delayed_work *delayedWork;
     DelayedEnqueueOperation *operation;
+    SemiLockFreeQueue *queue;
+    unsigned int epoch;
+    RCUSynchronizer* queueSynchronizer;
 
     delayedWork = container_of(input, struct delayed_work, work);
     operation = container_of(delayedWork, DelayedEnqueueOperation, work);
-*/
-    printk("tretretretertert");
 
-    //unregisterDelayedEnqueueOperation(operation->session, operation);   // TODO SE ESEGUO IN RITARDO???
-    //enqueueMessage(operation->session->queueSynchronizer, operation->userBuffer, operation->userBufferSize);
+    unregisterDelayedEnqueueOperation(operation);
 
-    //kfree(delayedWork);
-}
+    queueSynchronizer = operation->session->queueSynchronizer;
 
-DriverError enqueueDelayedMessage(Session* session, const char *userBuffer, size_t userBufferSize) {
+    epoch = readLockRCUGettingEpoch(queueSynchronizer);
 
-    DelayedEnqueueOperation *operation;
+    queue = (SemiLockFreeQueue *) queueSynchronizer->RCUProtectedDataStructure;
 
-    operation = kmalloc(sizeof(DelayedEnqueueOperation), GFP_KERNEL);
-    if (operation == NULL)
-        return -FAILURE;
+    if (operation->message->size <= queue->maxMessageSize)
+        if (SUCCESS != enqueue(queue, operation->message, operation->message->size))
+            freeMessage(operation->message);
 
-    operation->session = session;
-    operation->userBuffer = userBuffer;
-    operation->userBufferSize = userBufferSize;
+    readUnlockRCU(queueSynchronizer, epoch);
 
-    registerDelayedEnqueueOperation(session, operation, &performDelayedEnqueueOperation);
-
-    return SUCCESS;
+    kfree(operation);
 }

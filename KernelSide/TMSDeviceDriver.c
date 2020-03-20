@@ -21,6 +21,7 @@
 #include "DataStructure/KObjectManagement.h"
 #include "DataStructure/DeviceFileInstance.h"
 
+#include "DelayedOperations.h"
 #include "CleaningFunctions.h"
 #include "MessagesManagement.h"
 
@@ -126,7 +127,7 @@ static int TMS_open(struct inode *inode, struct file *file) {
 
                 writeUnlockRCU(DeviceFileInstanceRBTreeSynchronizer,
                                DeviceFileInstanceRBTreeSynchronizer->RCUProtectedDataStructure);
-                return FAILURE;
+                return ERR_ALLOCATION_FAILED;
 
             } else {
 
@@ -170,13 +171,24 @@ static ssize_t TMS_read(struct file *file, char *userBuffer, size_t userBufferSi
 static ssize_t TMS_write(struct file *file, const char *userBuffer, size_t userBufferSize, loff_t *offset) {
 
     Session *session;
+    DelayedEnqueueOperation *operation;
 
     session = (Session *) file->private_data;
 
     if (session->enqueueDelay > 0) {
 
-        printk("'%s': 'TMS_write' function is been called with 'SET_SEND_TIMEOUT' command (%lu)!\n", MODULE_NAME, session->enqueueDelay);
-        return enqueueDelayedMessage(session, userBuffer, userBufferSize);
+        printk("'%s': 'TMS_write' function is been called with 'SET_SEND_TIMEOUT' command (%lu)!\n", MODULE_NAME,
+               session->enqueueDelay);
+
+        operation = allocateDelayedEnqueueOperation(session, userBuffer, userBufferSize);
+
+        if (operation != NULL) {
+
+            registerAndEnableDelayedEnqueueOperation(operation, &performDelayedMessageEnqueue);
+            return SUCCESS;
+
+        } else
+            return ERR_ALLOCATION_FAILED;
 
     } else {
 
@@ -187,34 +199,20 @@ static ssize_t TMS_write(struct file *file, const char *userBuffer, size_t userB
 
 static int TMS_flush(struct file *file, fl_owner_t id) {
 
-    //DeviceFileInstance *deviceFileInstance;
+    DeviceFileInstance *deviceFileInstance;
     unsigned int minorDeviceNumber;
 
     minorDeviceNumber = iminor(file->f_inode);
 
     printk("'%s': 'TMS_flush' function is been called with minor number %d!\n", MODULE_NAME, minorDeviceNumber);
 
-    /*
-    SemiLockFreeQueue *oldQueue;
-    SemiLockFreeQueue *newQueue;
-    RCUSynchronizer *queueSynchronizer;
-    int queueID;
+    deviceFileInstance = getDeviceFileInstanceFromSynchronizer(DeviceFileInstanceRBTreeSynchronizer, minorDeviceNumber);
 
-    queueID = iminor(file->f_inode);
 
-    printk("'%s': 'TMS_flush' function is been called with minor number %d!\n", MODULE_NAME, queueID);
+    spin_lock(&deviceFileInstance->activeSessionsSpinlock);
+    performFunctionRBTree(deviceFileInstance->activeSessions, &revokeAllDelayedEnqueueOperationsVoid);
+    spin_unlock(&deviceFileInstance->activeSessionsSpinlock);
 
-    queueSynchronizer = getQueueRCUSynchronizer(RBTreeSynchronizer, queueID);
-
-    writeLockRCU(queueSynchronizer);
-
-    oldQueue = queueSynchronizer->RCUProtectedDataStructure;
-    newQueue = allocateSemiLockFreeQueue(oldQueue->maxMessageSize, oldQueue->maxStorageSize, oldQueue->kObject);
-
-    writeUnlockRCU(queueSynchronizer, newQueue);
-
-    freeSemiLockFreeQueue(oldQueue, &fullyRemoveMessage);
-*/
     return SUCCESS;
 }
 
@@ -259,7 +257,12 @@ static long TMS_unlocked_ioctl(struct file *file, unsigned int command, unsigned
 
         case REVOKE_DELAYED_MESSAGES:
             printk("'%s': 'REVOKE_DELAYED_MESSAGES' command received!\n", MODULE_NAME);
-            //revokeDelayedMessages(session);
+            revokeAllDelayedEnqueueOperations(session);
+            break;
+
+        case CLEAN_QUEUE:
+            printk("'%s': 'CLEAN_QUEUE' command received!\n", MODULE_NAME);
+            cleanQueue(session);
             break;
 
         default:
