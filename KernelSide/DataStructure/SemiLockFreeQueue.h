@@ -6,14 +6,14 @@
 
 typedef struct {
 
-    void *tail;
-    void *head;
+    void *tail __attribute__((aligned(64)));
+    void *head  __attribute__((aligned(64)));
+    long currentUsedStorage __attribute__((aligned(64)));
 
     long maxMessageSize;
     long maxStorageSize;
-    long currentUsedStorage;
 
-} SemiLockFreeQueue;
+} SemiLockFreeQueue __attribute__((aligned(64)));
 
 SemiLockFreeQueue *allocateSemiLockFreeQueue(long maxMessageSize, long maxStorageSize);
 

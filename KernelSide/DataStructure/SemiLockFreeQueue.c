@@ -1,5 +1,6 @@
 #include <linux/slab.h>
 #include <linux/kobject.h>
+#include <linux/kernel.h>
 
 #include "SemiLockFreeQueue.h"
 #include "../Common/BasicDefines.h"

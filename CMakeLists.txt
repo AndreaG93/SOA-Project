@@ -4,4 +4,4 @@ project(SOA-Project)
 LINK_LIBRARIES("pthread")
 set(CMAKE_C_STANDARD 11)
 
-add_executable(SOA-Project main.c UserSide/FileOperationsTests.c UserSide/FileOperationsTests.h)
+add_executable(SOA-Project main.c UserSide/Tests.c UserSide/Tests.h UserSide/BasicCommon.c UserSide/BasicCommon.h)

@@ -1,26 +1,17 @@
-#include <stdio.h>
-#include "UserSide/FileOperationsTests.h"
+#include "UserSide/Tests.h"
 
 int main() {
 
-/*
-    fprintf(stderr, "Start 'emptyTest'...\n");
-    emptyTest();
+    writeAndReadTest();
 
-    fprintf(stderr, "Start 'enqueueDequeueTest'...\n");
-    enqueueDequeueTest();
+    //concurrentWriteAndNonBlockingReadTest();
 
-    fprintf(stderr, "Start 'delayedEnqueueDequeueTest'...\n");
-    delayedEnqueueDequeueTest();
+    //SET_SEND_TIMEOUT_Test();
+    //SET_RECV_TIMEOUT_Test();
+    //REVOKE_DELAYED_MESSAGES_Test();
+    //CLEAN_QUEUE_Test();
 
-    fprintf(stderr, "Start 'failedDelayedEnqueueDequeueTest'...\n");
-    failedDelayedEnqueueDequeueTest();
-
-    fprintf(stderr, "Start 'delayedDequeueTest'...\n");
-    delayedDequeueTest();
-*/
-    fprintf(stderr, "Start 'cancelledDelayedDequeueTest'...\n");
-    cancelledDelayedDequeueTest();
+    //concurrentMultipleMinorNumber();
 
     return 0;
 }
