@@ -86,7 +86,7 @@ DriverError enqueue(SemiLockFreeQueue *queue, void *data, unsigned long dataSize
     while (TRUE) {
 
         actualTail = queue->tail;
-        if (__sync_bool_compare_and_swap(&queue->tail, actualTail, newNode)) {
+        if (COMPARE_AND_SWAP(&queue->tail, actualTail, newNode)) {
             actualTail->next = newNode;
             break;
         }
@@ -100,13 +100,8 @@ void *dequeue(SemiLockFreeQueue *queue, unsigned long (*getSizeFromData)(void *)
     SemiLockFreeQueueNode *actualHead;
     void *output;
     unsigned long outputSize;
-    unsigned long currentUsedStorage;
 
     do {
-
-        currentUsedStorage = ADD_AND_FETCH(&queue->currentUsedStorage, 0);
-        if (currentUsedStorage == 0)
-            return NULL;
 
         actualHead = queue->head;
 
@@ -120,11 +115,11 @@ void *dequeue(SemiLockFreeQueue *queue, unsigned long (*getSizeFromData)(void *)
     output = ((SemiLockFreeQueueNode *) actualHead->next)->data;
     ((SemiLockFreeQueueNode *) actualHead->next)->data = NULL;
 
+    outputSize = (*getSizeFromData)(output);
+    SUB_AND_FETCH(&queue->currentUsedStorage, outputSize);
+
     queue->head = actualHead->next;
     kfree(actualHead);
-
-    outputSize = (*getSizeFromData)(output);
-    SUB_AND_FETCH(&queue->currentUsedStorage, outputSize)
 
     return output;
 }

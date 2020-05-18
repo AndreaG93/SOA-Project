@@ -12,6 +12,7 @@
 #include "Common/BasicDefines.h"
 #include "Common/ModuleMetadata.h"
 #include "Common/BasicOperations.h"
+#include "Common/SynchronizationPrimitives.h"
 
 #include "DataStructure/RBTree.h"
 #include "DataStructure/SemiLockFreeQueue.h"
@@ -105,14 +106,19 @@ static int TMS_open(struct inode *inode, struct file *file) {
     DeviceFileInstance *deviceFileInstance;
     unsigned int minorDeviceNumber;
 
-    if (!isModuleActive)
+    if (!isModuleActive) {
         return FAILURE;
-    else
-        __sync_add_and_fetch(&currentActiveSessions, 1);
+    }
+
+    if (ADD_AND_FETCH(&currentActiveSessions, 1) == 0) {
+        return FAILURE;
+    }
+
 
     minorDeviceNumber = iminor(file->f_inode);
 
-    printk("'%s': 'TMS_open' function is been called with minor number %d --> PID %d!\n", MODULE_NAME, minorDeviceNumber, current->pid);
+    printk("'%s': 'TMS_open' function is been called with minor number %d --> PID %d!\n", MODULE_NAME,
+           minorDeviceNumber, current->pid);
 
     deviceFileInstance = getDeviceFileInstanceFromSynchronizer(DeviceFileInstanceRBTreeSynchronizer, minorDeviceNumber);
 
@@ -246,7 +252,7 @@ static int TMS_release(struct inode *inode, struct file *file) {
     freeSession(file->private_data);
     file->private_data = NULL;
 
-    __sync_sub_and_fetch(&currentActiveSessions, 1);
+    SUB_AND_FETCH(&currentActiveSessions, 1);
 
     return SUCCESS;
 }
@@ -336,10 +342,11 @@ int registerTMSDeviceDriver(void) {
 void unregisterTMSDeviceDriver(void) {
 
     isModuleActive = FALSE;
-
     asm volatile("mfence");
 
-    while (currentActiveSessions > 0);
+    SUB_AND_FETCH(&currentActiveSessions, 1);
+
+    while (currentActiveSessions > -1);
 
     fullRemoveDeviceFileInstanceRBTreeSynchronizer(DeviceFileInstanceRBTreeSynchronizer);
 
