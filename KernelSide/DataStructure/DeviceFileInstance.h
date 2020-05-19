@@ -15,9 +15,10 @@ typedef struct {
     spinlock_t activeSessionsSpinlock;
     struct kobject *KObject;
 
-} DeviceFileInstance;
+} __randomize_layout
+DeviceFileInstance;
 
-DeviceFileInstance *allocateDeviceFileInstance(unsigned int minorDeviceNumber, struct kobject* parentKObject,
+DeviceFileInstance *allocateDeviceFileInstance(unsigned int minorDeviceNumber, struct kobject *parentKObject,
                                                ssize_t (*show)(struct kobject *, struct kobj_attribute *, char *),
                                                ssize_t (*store)(struct kobject *, struct kobj_attribute *, const char *,
                                                                 size_t));

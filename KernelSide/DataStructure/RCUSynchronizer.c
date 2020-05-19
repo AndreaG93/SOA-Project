@@ -1,5 +1,6 @@
 #include <linux/spinlock_types.h>
 #include <linux/slab.h>
+#include <linux/preempt.h>
 
 #include "RCUSynchronizer.h"
 
@@ -22,7 +23,11 @@ RCUSynchronizer *allocateRCUSynchronizer(void *dataStructureToProtect) {
 
 unsigned int readLockRCUGettingEpoch(RCUSynchronizer *input) {
 
-    unsigned int output = input->epoch;
+    unsigned int output;
+
+    preempt_disable();
+
+    output = input->epoch;
 
     asm volatile("mfence");
     __sync_add_and_fetch(&input->standing[output], 1);
@@ -31,7 +36,9 @@ unsigned int readLockRCUGettingEpoch(RCUSynchronizer *input) {
 }
 
 void readUnlockRCU(RCUSynchronizer *input, unsigned int epoch) {
+
     __sync_sub_and_fetch(&input->standing[epoch], 1);
+    preempt_enable();
 }
 
 

@@ -5,7 +5,8 @@
 typedef struct {
     void *content;
     unsigned long size;
-} Message;
+} __randomize_layout
+Message;
 
 Message *allocateMessage(const char *userBuffer, unsigned long userBufferSize);
 

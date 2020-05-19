@@ -12,5 +12,3 @@ mknod /dev/TMS2 c 240 2
 sudo chmod a+rw /dev/TMS0
 sudo chmod a+rw /dev/TMS1
 sudo chmod a+rw /dev/TMS2
-
-18446638685067166752

@@ -2,7 +2,7 @@
 
 int main() {
 
-    //writeAndReadTest();
+    writeAndReadTest();
 
     //concurrentWriteAndNonBlockingReadTest();
 

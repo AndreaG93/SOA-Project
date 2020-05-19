@@ -21,7 +21,8 @@ typedef struct {
 
     unsigned long delayedEnqueueOperationsIndex;
 
-} Session;
+} __randomize_layout
+Session;
 
 
 Session *allocateSession(RCUSynchronizer *queueSynchronizer);

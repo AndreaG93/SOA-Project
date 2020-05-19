@@ -11,15 +11,17 @@ typedef struct {
 
     unsigned long index;
     Session *session;
-    Message* message;
+    Message *message;
 
-} DelayedEnqueueOperation;
+} __randomize_layout
+DelayedEnqueueOperation;
 
-DelayedEnqueueOperation* allocateDelayedEnqueueOperation(Session* session, const char *userBuffer, unsigned long userBufferSize);
+DelayedEnqueueOperation *
+allocateDelayedEnqueueOperation(Session *session, const char *userBuffer, unsigned long userBufferSize);
 
-void registerAndEnableDelayedEnqueueOperation(DelayedEnqueueOperation* operation, void (* work)(struct work_struct*));
+void registerAndEnableDelayedEnqueueOperation(DelayedEnqueueOperation *operation, void (*work)(struct work_struct *));
 
-void unregisterDelayedEnqueueOperation(DelayedEnqueueOperation* operation);
+void unregisterDelayedEnqueueOperation(DelayedEnqueueOperation *operation);
 
 void revokeAllDelayedEnqueueOperations(Session *input);
 

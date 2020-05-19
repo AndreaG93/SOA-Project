@@ -10,7 +10,8 @@ typedef struct {
 
     void *RCUProtectedDataStructure;
 
-} RCUSynchronizer;
+} __randomize_layout
+RCUSynchronizer;
 
 RCUSynchronizer *allocateRCUSynchronizer(void *dataStructureToProtect);
 
