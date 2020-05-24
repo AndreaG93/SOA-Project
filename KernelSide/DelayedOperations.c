@@ -89,6 +89,6 @@ void revokeAllDelayedDequeueOperationsVoid(void *input) {
     session = (Session *) input;
 
     session->wakeUpFlag = WAKE_UP_FLAG;
-
     wake_up(session->waitQueueHead);
+    session->wakeUpFlag = NOT_WAKE_UP_FLAG;
 }

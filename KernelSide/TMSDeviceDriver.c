@@ -177,7 +177,6 @@ static ssize_t TMS_read(struct file *file, char *userBuffer, size_t userBufferSi
 
         add_wait_queue(session->waitQueueHead, session->delayedDequeueOperation);
         wait_event_timeout(*session->waitQueueHead, (session->wakeUpFlag == WAKE_UP_FLAG), session->dequeueDelay);
-        session->wakeUpFlag = NOT_WAKE_UP_FLAG;
 
         return dequeueMessage(session->queueSynchronizer, userBuffer, userBufferSize);
 
